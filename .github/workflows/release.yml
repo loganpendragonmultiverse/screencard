@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - name: Package static site
+        run: |
+          cd dist
+          zip -r "../screencard-${GITHUB_REF_NAME}.zip" .
+          cd ..
+          sha256sum "screencard-${GITHUB_REF_NAME}.zip" > "screencard-${GITHUB_REF_NAME}.sha256"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          "screencard-${GITHUB_REF_NAME}.zip"
+          "screencard-${GITHUB_REF_NAME}.sha256"
+          --generate-notes
+          --title "ScreenCard $GITHUB_REF_NAME"

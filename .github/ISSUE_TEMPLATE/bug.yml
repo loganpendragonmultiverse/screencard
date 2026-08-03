@@ -1,0 +1,23 @@
+name: Bug report
+description: Report a reproducible ScreenCard defect without sensitive data.
+title: '[Bug]: '
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version and browser
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Never include your TMDB token or private notes.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true

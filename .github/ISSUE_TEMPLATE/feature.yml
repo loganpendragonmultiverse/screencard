@@ -1,0 +1,16 @@
+name: Feature request
+description: Propose a bounded, local-first improvement.
+title: '[Feature]: '
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Smallest useful scope and privacy impact
+    validations:
+      required: true
