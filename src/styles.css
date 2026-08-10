@@ -388,6 +388,76 @@ main {
   display: flex;
   gap: 7px;
 }
+.library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 0 clamp(24px, 6vw, 96px) 22px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.library-toolbar label,
+.comparison-tools label,
+.library-card .result-copy label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.library-toolbar select,
+.comparison-tools select,
+.library-card select,
+.library-card input {
+  min-height: 34px;
+  padding: 6px 8px;
+  color: var(--ink);
+  background: #0f1219;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}
+.toolbar-actions button,
+.import-button {
+  padding: 9px 11px;
+  color: var(--ink) !important;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 10px !important;
+  text-transform: none !important;
+}
+.library-grid {
+  padding: 0 clamp(24px, 6vw, 96px) 80px;
+}
+.library-card .result-copy {
+  display: grid;
+  gap: 10px;
+}
+.comparison-card dl div.different {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: inset 2px 0 var(--accent);
+}
+.comparison-tools {
+  flex-wrap: wrap;
+}
+.comparison-tools .include-notes {
+  display: flex;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  margin-right: auto;
+}
 .comparison-grid {
   display: grid;
   grid-template-columns: repeat(var(--columns), minmax(250px, 1fr));

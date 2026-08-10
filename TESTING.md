@@ -10,7 +10,9 @@ npm audit
 
 The gate checks formatting, ESLint, strict TypeScript, unit-test coverage, and the Vite production
 build. Tests cover cache expiry, malformed storage, minimal watchlists, token persistence, notes,
-TMDB result filtering, request caching, API errors, data formatting, and both export formats.
+TMDB result filtering, request caching, API errors, data formatting, named library metadata,
+comparison sets, backup conflict previews and merges, and both export formats with and without
+private notes.
 
 ## Manual release checks
 
@@ -26,3 +28,7 @@ Use a personal developer token that is never committed or recorded in test outpu
 8. Clear the token and confirm searches do not silently use another credential.
 9. Verify responsive layouts and keyboard focus at desktop and mobile widths.
 10. Verify the deployed GitHub Pages URL and Forge catalog links.
+11. Create a named list; change state, priority, personal rating, and tags; then filter and sort it.
+12. Save and reload a comparison set, change its sort, and confirm differing values are highlighted.
+13. Export a backup, create a local conflict, import it, review the preview, and confirm the merge.
+14. Export Markdown and JSON with private notes disabled and confirm no note field or text remains.
