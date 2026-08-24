@@ -8,13 +8,14 @@ export const buildExport = (
   cards: MediaDetails[],
   notes: Record<string, string>,
   exportedAt = new Date().toISOString(),
+  includeNotes = true,
 ): ExportBundle => ({
   format: 'screencard-research',
   version: 1,
   exportedAt,
   cards: cards.map((media) => ({
     media,
-    note: notes[`${media.media_type}:${media.id}`] ?? '',
+    ...(includeNotes ? { note: notes[`${media.media_type}:${media.id}`] ?? '' } : {}),
   })),
   attribution: ATTRIBUTION,
 });
