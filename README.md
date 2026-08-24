@@ -1,7 +1,7 @@
 # ScreenCard
 
 ScreenCard is a local-first movie and TV research desk powered by your own TMDB API Read Access
-Token. Search for titles, keep a device-local watchlist, compare up to four complete research cards,
+Token. Search for titles, organize a device-local viewing library, compare up to four complete research cards,
 add private notes, and export the result as Markdown or JSON.
 
 There is no ScreenCard server, account, analytics, advertising, or tracking. The production build is
@@ -12,9 +12,12 @@ a static site that can run from GitHub Pages, any ordinary web host, or a local 
 - Search movies and TV series together without mixing people into the results.
 - Compare rating, runtime or episode structure, status, genres, directors or lead producers, cast,
   synopsis, trailers, and TMDB pages side by side.
-- Keep a watchlist that stores only media type, TMDB ID, and the local time it was added.
+- Organize titles into named local lists with viewing state, priority, personal rating, and tags.
 - Add private research notes to comparison cards.
 - Export comparison cards and notes as portable Markdown or versioned JSON.
+- Sort comparisons, highlight meaningful differences, and save reusable comparison sets.
+- Export or merge a versioned local backup with a conflict preview before incoming values win.
+- Create shareable research exports that deliberately omit private notes.
 - Cache fetched TMDB responses for 24 hours to reduce repeated requests.
 - Keep the API token session-only by default, with an explicit remember-on-this-device option.
 - Self-host the compiled static files without a database or backend.
@@ -71,12 +74,13 @@ No server-side environment variables are required. Do not bake a private token i
 
 ScreenCard uses browser `sessionStorage` and `localStorage`:
 
-| Data                | Default location | Notes                                                   |
-| ------------------- | ---------------- | ------------------------------------------------------- |
-| TMDB token          | Session storage  | Moves to local storage only when “Remember” is checked. |
-| Watchlist           | Local storage    | Contains media type, TMDB ID, and added time only.      |
-| Research notes      | Local storage    | Plain text, never transmitted by ScreenCard.            |
-| TMDB response cache | Local storage    | Expires after 24 hours.                                 |
+| Data                | Default location | Notes                                                    |
+| ------------------- | ---------------- | -------------------------------------------------------- |
+| TMDB token          | Session storage  | Moves to local storage only when “Remember” is checked.  |
+| Library             | Local storage    | IDs, named lists, viewing state, priority, rating, tags. |
+| Research notes      | Local storage    | Plain text, never transmitted by ScreenCard.             |
+| Comparison sets     | Local storage    | Names and TMDB movie/TV references.                      |
+| TMDB response cache | Local storage    | Expires after 24 hours.                                  |
 
 Markdown and JSON exports are created entirely in the browser. They can contain TMDB data and your
 notes, so review them before sharing.
@@ -86,11 +90,17 @@ notes, so review them before sharing.
 - ScreenCard needs a user-supplied TMDB developer token and an internet connection for uncached
   title data and images.
 - A browser application cannot hide a token from someone who controls that browser or device.
-- Watchlists do not synchronize between devices and do not integrate with a TMDB user account.
+- Libraries do not synchronize automatically between devices and do not integrate with a TMDB
+  user account. Versioned backup files can be moved manually and expose a merge summary first.
 - Ratings are TMDB community ratings, not personal recommendations or review scores.
 - Availability by streaming provider is deliberately outside version 1; showing that data would add
   separate JustWatch attribution and regional-state requirements.
 - TMDB controls its API availability, rate limits, data, and images.
+
+## Current release
+
+Version 1.1.0 adds named libraries, viewing states, ratings, priorities and tags; sortable
+difference-aware comparisons and saved sets; merge-preview backups; and note-free share exports.
 
 ## Attribution
 

@@ -47,6 +47,45 @@ export interface MediaRef {
   addedAt: number;
 }
 
+export type ViewingStatus = 'want-to-watch' | 'watching' | 'watched' | 'paused' | 'skipped';
+export type Priority = 'low' | 'normal' | 'high';
+
+export interface SavedList {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface LibraryEntry extends MediaRef {
+  listIds: string[];
+  status: ViewingStatus;
+  priority: Priority;
+  personalRating: number | null;
+  tags: string[];
+}
+
+export interface LibraryState {
+  version: 2;
+  lists: SavedList[];
+  entries: LibraryEntry[];
+}
+
+export interface ComparisonSet {
+  id: string;
+  name: string;
+  savedAt: number;
+  media: Array<Pick<MediaRef, 'id' | 'mediaType'>>;
+}
+
+export interface ScreenCardBackup {
+  format: 'screencard-backup';
+  version: 2;
+  exportedAt: string;
+  library: LibraryState;
+  notes: Record<string, string>;
+  comparisonSets: ComparisonSet[];
+}
+
 export interface CacheRecord<T> {
   savedAt: number;
   expiresAt: number;
@@ -57,6 +96,6 @@ export interface ExportBundle {
   format: 'screencard-research';
   version: 1;
   exportedAt: string;
-  cards: Array<{ media: MediaDetails; note: string }>;
+  cards: Array<{ media: MediaDetails; note?: string }>;
   attribution: string;
 }

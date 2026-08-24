@@ -42,4 +42,15 @@ describe('portable research exports', () => {
     expect(markdown).toContain('2 seasons / 16 episodes');
     expect(markdown).toContain(ATTRIBUTION);
   });
+
+  it('can omit private notes from a shareable export', () => {
+    const bundle = buildExport(
+      [card],
+      { 'tv:42': 'Private detail' },
+      '2026-08-10T00:00:00Z',
+      false,
+    );
+    expect(bundle.cards[0]).not.toHaveProperty('note');
+    expect(exportMarkdown(bundle)).not.toContain('Private detail');
+  });
 });
