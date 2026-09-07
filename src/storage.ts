@@ -42,7 +42,6 @@ export const cacheKey = (path: string): string => `${CACHE_PREFIX}${path}`;
 export const getCached = <T>(store: Storage, key: string, now = Date.now()): T | null => {
   const record = readJson<CacheRecord<T> | null>(store, cacheKey(key), null);
   if (!record || record.expiresAt <= now) {
-    store.removeItem(cacheKey(key));
     return null;
   }
   return record.data;
@@ -51,6 +50,15 @@ export const getCached = <T>(store: Storage, key: string, now = Date.now()): T |
 export const setCached = <T>(store: Storage, key: string, data: T, now = Date.now()): void => {
   const record: CacheRecord<T> = { savedAt: now, expiresAt: now + MAX_CACHE_AGE, data };
   store.setItem(cacheKey(key), JSON.stringify(record));
+  const keys = Array.from({ length: store.length }, (_, i) => store.key(i)).filter(
+    (k): k is string => Boolean(k?.startsWith(CACHE_PREFIX)),
+  );
+  keys.sort(
+    (a, b) =>
+      (readJson<CacheRecord<unknown> | null>(store, a, null)?.savedAt ?? 0) -
+      (readJson<CacheRecord<unknown> | null>(store, b, null)?.savedAt ?? 0),
+  );
+  for (const old of keys.slice(0, Math.max(0, keys.length - 100))) store.removeItem(old);
 };
 
 export const getLibrary = (store: Storage): LibraryState => {
@@ -188,13 +196,36 @@ export const saveComparisonSet = (
 export const buildBackup = (
   store: Storage,
   exportedAt = new Date().toISOString(),
+  includeNotes = true,
 ): ScreenCardBackup => ({
   format: 'screencard-backup',
   version: 2,
   exportedAt,
-  library: getLibrary(store),
-  notes: getNotes(store),
-  comparisonSets: getComparisonSets(store),
+  library: {
+    version: 2,
+    lists: getLibrary(store).lists.map((list) => ({
+      id: list.id,
+      name: list.name,
+      createdAt: list.createdAt,
+    })),
+    entries: getLibrary(store).entries.map((entry) => ({
+      id: entry.id,
+      mediaType: entry.mediaType,
+      addedAt: entry.addedAt,
+      listIds: entry.listIds,
+      status: entry.status,
+      priority: entry.priority,
+      personalRating: entry.personalRating,
+      tags: entry.tags,
+    })),
+  },
+  notes: includeNotes ? getNotes(store) : {},
+  comparisonSets: getComparisonSets(store).map((set) => ({
+    id: set.id,
+    name: set.name,
+    savedAt: set.savedAt,
+    media: set.media.map((ref) => ({ id: ref.id, mediaType: ref.mediaType })),
+  })),
 });
 
 export interface MergePreview {

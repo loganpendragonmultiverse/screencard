@@ -834,3 +834,75 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+
+[hidden] {
+  display: none !important;
+}
+.column-tools {
+  padding: 20px;
+  background: var(--surface, #f5f1e9);
+  margin-bottom: 20px;
+}
+.column-tools fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.column-tools p,
+.cache-evidence {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+#name-dialog {
+  max-width: min(480px, 90vw);
+}
+#name-dialog input {
+  width: 100%;
+}
+
+.library-toolbar > button,
+.column-tools select,
+#name-dialog button,
+[data-action='demo'] {
+  padding: 9px 11px;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.column-tools {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+#name-form {
+  padding: 24px;
+}
+#name-form label {
+  display: grid;
+  gap: 8px;
+}
+#name-form input {
+  padding: 10px;
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+#name-form footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.column-tools {
+  margin: 0 clamp(24px, 6vw, 96px) 20px;
+  font-size: 12px;
+}
+.comparison-poster .poster-fallback {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
