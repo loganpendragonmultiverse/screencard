@@ -1,4 +1,14 @@
 import './styles.css';
+import {
+  columns,
+  presets,
+  preferences,
+  savePreferences,
+  detailCache,
+  demoCards,
+  localReference,
+} from './research';
+import type { Column } from './research';
 import { buildExport, exportJson, exportMarkdown } from './export';
 import {
   buildBackup,
@@ -52,6 +62,10 @@ let activeStatus = 'all';
 let activeTag = '';
 let librarySort = 'priority';
 let compareSort = 'added';
+let selectedColumns = preferences(localStorage).columns;
+let includePrivateNotes = false;
+let namePurpose: 'list' | 'comparison' | 'filter' = 'list';
+const provenance = new Map<string, string>();
 
 const escapeHtml = (value: unknown): string =>
   String(value ?? '')
@@ -96,6 +110,7 @@ const shell = (): string => `
     <span>Local-first. No accounts. No tracking.</span>
     <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer"><img src="./assets/tmdb-logo.svg" alt="TMDB" /></a>
   </footer>
+  <dialog id="name-dialog" aria-labelledby="name-heading"><form id="name-form"><h2 id="name-heading">Name your local item</h2><label>Name<input id="item-name" required maxlength="80" /></label><p id="name-error" role="alert"></p><footer><button type="button" data-action="close-name">Cancel</button><button type="submit">Save</button></footer></form></dialog>
   <dialog id="token-dialog">${tokenForm()}</dialog>
   <div class="toast ${status ? 'show' : ''}" role="status">${escapeHtml(status)}</div>
 `;
@@ -117,6 +132,7 @@ const searchView = (): string => `
     <form id="search-form" class="search-box">
       <label for="search-input">Search movies and TV</label>
       <div><input id="search-input" name="query" placeholder="Try Arrival, Severance, or The Bear" autocomplete="off" required /><button ${busy ? 'disabled' : ''}>${busy ? 'Searching…' : 'Search'}</button></div>
+      <button type="button" data-action="demo">Explore fictional offline demo</button>
       <small>Results and images come directly from TMDB using your own token.</small>
     </form>
   </section>
@@ -131,7 +147,7 @@ const resultCard = (media: SearchResult): string => {
   return `<article class="result-card">
     <div class="poster-wrap">${poster ? `<img src="${poster}" alt="Poster for ${escapeHtml(titleOf(media))}" loading="lazy" />` : '<div class="poster-fallback">No poster</div>'}<span>${media.media_type === 'movie' ? 'Movie' : 'Series'}</span></div>
     <div class="result-copy"><div class="rating">★ ${media.vote_average.toFixed(1)}</div><h3>${escapeHtml(titleOf(media))}</h3><small>${escapeHtml(yearOf(media))}</small><p>${escapeHtml(media.overview || 'No synopsis is available.')}</p></div>
-    <footer><button data-action="watch" data-type="${media.media_type}" data-id="${media.id}" class="quiet">${isWatched(media) ? '✓ Watchlist' : '+ Watchlist'}</button><button data-action="compare" data-type="${media.media_type}" data-id="${media.id}" ${selected || compare.length >= 4 ? 'disabled' : ''}>${selected ? 'Selected' : 'Compare'}</button></footer>
+    <footer><button data-action="watch" data-type="${media.media_type}" data-id="${media.id}" class="quiet">${isWatched(media) ? '✓ Watchlist' : '+ Watchlist'}</button><button aria-label="Compare ${escapeHtml(titleOf(media))}" data-action="compare" data-type="${media.media_type}" data-id="${media.id}" ${selected || compare.length >= 4 ? 'disabled' : ''}>${selected ? 'Selected' : 'Compare'}</button></footer>
   </article>`;
 };
 
@@ -146,10 +162,11 @@ const comparisonCard = (media: MediaDetails): string => {
       : `${media.number_of_seasons ?? '—'} seasons · ${media.number_of_episodes ?? '—'} episodes`;
   return `<article class="comparison-card">
     <button class="remove-card" data-action="remove-compare" data-key="${mediaKey(media)}" aria-label="Remove ${escapeHtml(titleOf(media))}">×</button>
-    <div class="comparison-poster">${media.poster_path ? `<img src="${imageUrl(media.poster_path, 'w500')}" alt="Poster for ${escapeHtml(titleOf(media))}" />` : ''}</div>
+    <div class="comparison-poster">${media.poster_path ? `<img src="${imageUrl(media.poster_path, 'w500')}" alt="Poster for ${escapeHtml(titleOf(media))}" />` : '<div class="poster-fallback">No poster · local card</div>'}</div>
     <p class="media-kind">${media.media_type === 'movie' ? 'Movie' : 'TV series'} · ${escapeHtml(yearOf(media))}</p>
     <h2>${escapeHtml(titleOf(media))}</h2><p class="tagline">${escapeHtml(media.tagline)}</p>
-    <dl><div class="${differenceClass('rating', media.vote_average.toFixed(1))}"><dt>Rating</dt><dd>${media.vote_average.toFixed(1)} / 10</dd></div><div class="${differenceClass('runtime', runtime)}"><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div><div class="${differenceClass('status', media.status)}"><dt>Status</dt><dd>${escapeHtml(media.status)}</dd></div><div class="${differenceClass('genres', media.genres.map((item) => item.name).join(', '))}"><dt>Genres</dt><dd>${escapeHtml(media.genres.map((item) => item.name).join(', ') || '—')}</dd></div><div><dt>Director / leads</dt><dd>${escapeHtml(directorsOf(media).join(', ') || '—')}</dd></div><div><dt>Top cast</dt><dd>${escapeHtml(
+    <p class="cache-evidence">${escapeHtml(provenance.get(mediaKey(media)) ?? 'Local card')}</p>
+    <dl><div data-column="rating" ${selectedColumns.includes('rating') ? '' : 'hidden'} class="${differenceClass('rating', media.vote_average.toFixed(1))}"><dt>Rating</dt><dd>${media.vote_average.toFixed(1)} / 10</dd></div><div data-column="runtime" ${selectedColumns.includes('runtime') ? '' : 'hidden'} class="${differenceClass('runtime', runtime)}"><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div><div data-column="status" ${selectedColumns.includes('status') ? '' : 'hidden'} class="${differenceClass('status', media.status)}"><dt>Status</dt><dd>${escapeHtml(media.status)}</dd></div><div data-column="genres" ${selectedColumns.includes('genres') ? '' : 'hidden'} class="${differenceClass('genres', media.genres.map((item) => item.name).join(', '))}"><dt>Genres</dt><dd>${escapeHtml(media.genres.map((item) => item.name).join(', ') || '—')}</dd></div><div ${selectedColumns.includes('directors') ? '' : 'hidden'}><dt>Director / leads</dt><dd>${escapeHtml(directorsOf(media).join(', ') || '—')}</dd></div><div ${selectedColumns.includes('cast') ? '' : 'hidden'}><dt>Top cast</dt><dd>${escapeHtml(
       media.credits.cast
         .slice(0, 5)
         .map((item) => item.name)
@@ -157,7 +174,7 @@ const comparisonCard = (media: MediaDetails): string => {
     )}</dd></div></dl>
     <p class="overview">${escapeHtml(media.overview || 'No synopsis is available.')}</p>
     <label class="note-field">Research note<textarea data-note="${mediaKey(media)}" placeholder="Why this title, who is it for, or what do you want to remember?">${escapeHtml(notes[mediaKey(media)] ?? '')}</textarea></label>
-    <div class="card-links">${trailer ? `<a href="${trailer}" target="_blank" rel="noreferrer">Watch trailer ↗</a>` : ''}<a href="https://www.themoviedb.org/${media.media_type}/${media.id}" target="_blank" rel="noreferrer">View on TMDB ↗</a></div>
+    <div class="card-links">${trailer ? `<a href="${trailer}" target="_blank" rel="noreferrer">Watch trailer ↗</a>` : ''}${media.id > 0 ? `<a href="https://www.themoviedb.org/${media.media_type}/${media.id}" target="_blank" rel="noreferrer">View on TMDB ↗</a>` : 'Fictional offline demo'}</div>
   </article>`;
 };
 
@@ -188,7 +205,16 @@ const compareView = (): string => `
   <section class="page-intro"><p>Side-by-side research</p><h1>Comparison desk</h1><span>Keep the differences visible. Notes and selections remain on this device.</span></section>
   ${
     compare.length
-      ? `<div class="export-bar comparison-tools"><label>Sort<select id="compare-sort"><option value="added">Added order</option><option value="rating" ${compareSort === 'rating' ? 'selected' : ''}>Rating</option><option value="year" ${compareSort === 'year' ? 'selected' : ''}>Year</option><option value="title" ${compareSort === 'title' ? 'selected' : ''}>Title</option></select></label><label class="include-notes"><input id="include-notes" type="checkbox" checked /> Include private notes</label><div><button data-action="save-comparison">Save set</button><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
+      ? `<div class="column-tools"><label>Comparison preset<select id="column-preset"><option value="custom">Custom columns</option>${Object.keys(
+          presets,
+        )
+          .map(
+            (name) =>
+              `<option value="${name}" ${JSON.stringify(presets[name]) === JSON.stringify(selectedColumns) ? 'selected' : ''}>${name}</option>`,
+          )
+          .join(
+            '',
+          )}</select></label><fieldset><legend>Visible comparison fields</legend>${columns.map((column) => `<label><input type="checkbox" data-column-choice="${column}" ${selectedColumns.includes(column) ? 'checked' : ''} /> ${column}</label>`).join('')}</fieldset><p>These controls change the comparison view. Research exports contain full card details; private notes are optional.</p></div><div class="export-bar comparison-tools"><label>Sort<select id="compare-sort"><option value="added">Added order</option><option value="rating" ${compareSort === 'rating' ? 'selected' : ''}>Rating</option><option value="year" ${compareSort === 'year' ? 'selected' : ''}>Year</option><option value="title" ${compareSort === 'title' ? 'selected' : ''}>Title</option></select></label><label class="include-notes"><input id="include-notes" type="checkbox" ${includePrivateNotes ? 'checked' : ''} /> Include private notes</label><div><button data-action="save-comparison">Save set</button><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
           localStorage,
         )
           .map((set) => `<option value="${escapeHtml(set.id)}">${escapeHtml(set.name)}</option>`)
@@ -215,6 +241,12 @@ const libraryToolbar = (): string => {
     <label>Status<select id="status-filter"><option value="all">All states</option>${['want-to-watch', 'watching', 'watched', 'paused', 'skipped'].map((value) => `<option value="${value}" ${activeStatus === value ? 'selected' : ''}>${value.replaceAll('-', ' ')}</option>`).join('')}</select></label>
     <label>Tag<select id="tag-filter"><option value="">All tags</option>${tags.map((tag) => `<option ${activeTag === tag ? 'selected' : ''}>${escapeHtml(tag)}</option>`).join('')}</select></label>
     <label>Sort<select id="library-sort"><option value="priority">Priority</option><option value="rating" ${librarySort === 'rating' ? 'selected' : ''}>Personal rating</option><option value="added" ${librarySort === 'added' ? 'selected' : ''}>Recently added</option><option value="title" ${librarySort === 'title' ? 'selected' : ''}>Title</option></select></label>
+    <label>Saved filters<select id="saved-filter"><option value="">Choose a saved view</option>${preferences(
+      localStorage,
+    )
+      .filters.map((filter, i) => `<option value="${i}">${escapeHtml(filter.name)}</option>`)
+      .join('')}</select></label><button data-action="save-filter">Save current filters</button>
+    <label><input id="backup-notes" type="checkbox" /> Include private notes in backup</label>
     <div class="toolbar-actions"><button data-action="new-list">New list</button><button data-action="backup">Export backup</button><label class="import-button">Import / merge<input id="backup-file" type="file" accept="application/json,.json" hidden /></label></div>
   </section>`;
 };
@@ -256,7 +288,7 @@ const libraryCard = (media: MediaDetails): string => {
     <label>Personal rating<input data-entry="${mediaKey(media)}" data-field="rating" type="number" min="0" max="10" step="0.5" value="${entry.personalRating ?? ''}" placeholder="0–10" /></label>
     <label>Tags<input data-entry="${mediaKey(media)}" data-field="tags" value="${escapeHtml(entry.tags.join(', '))}" placeholder="slow burn, family" /></label>
     <label>List<select data-entry="${mediaKey(media)}" data-field="list">${library.lists.map((list) => `<option value="${escapeHtml(list.id)}" ${entry.listIds.includes(list.id) ? 'selected' : ''}>${escapeHtml(list.name)}</option>`).join('')}</select></label></div>
-    <footer><button data-action="watch" data-type="${media.media_type}" data-id="${media.id}" class="quiet">Remove</button><button data-action="compare" data-type="${media.media_type}" data-id="${media.id}">Compare</button></footer></article>`;
+    <footer><button data-action="watch" data-type="${media.media_type}" data-id="${media.id}" class="quiet">Remove</button><button aria-label="Compare ${escapeHtml(titleOf(media))}" data-action="compare" data-type="${media.media_type}" data-id="${media.id}">Compare</button></footer></article>`;
 };
 
 const aboutView = (): string => `
@@ -277,7 +309,6 @@ const tokenForm = (): string => `
 const render = (): void => {
   app.innerHTML = shell();
   bindEvents();
-  if (!token) document.querySelector<HTMLDialogElement>('#token-dialog')?.showModal();
 };
 
 const setStatus = (message: string): void => {
@@ -295,9 +326,28 @@ const refFrom = (element: HTMLElement): MediaRef => ({
   addedAt: Date.now(),
 });
 
-const loadDetails = async (ref: MediaRef): Promise<MediaDetails> => {
-  if (!token) throw new Error('Add your TMDB API Read Access Token first.');
-  return getMediaDetails(ref.mediaType, ref.id, token, localStorage);
+const loadDetails = async (ref: MediaRef, allowLocal = false): Promise<MediaDetails> => {
+  const demo = demoCards.find((card) => card.id === ref.id && card.media_type === ref.mediaType);
+  if (demo) {
+    provenance.set(mediaKey(demo), 'Fictional offline demo · not TMDB data');
+    return structuredClone(demo);
+  }
+  const cached = detailCache(localStorage, ref);
+  if (!token) {
+    if (cached) {
+      provenance.set(mediaKey(cached.media), cached.label);
+      return cached.media;
+    }
+    if (allowLocal) {
+      const media = localReference(ref);
+      provenance.set(mediaKey(media), 'Local reference · no cached details');
+      return media;
+    }
+    throw new Error('Connect a TMDB token to load uncached details.');
+  }
+  const media = await getMediaDetails(ref.mediaType, ref.id, token, localStorage);
+  provenance.set(mediaKey(media), detailCache(localStorage, ref)?.label ?? 'Fresh TMDB details');
+  return media;
 };
 
 const runSearch = async (query: string): Promise<void> => {
@@ -322,7 +372,9 @@ const loadWatchlist = async (): Promise<void> => {
   busy = true;
   render();
   try {
-    watchlistDetails = await Promise.all(getWatchlist(localStorage).map(loadDetails));
+    watchlistDetails = await Promise.all(
+      getWatchlist(localStorage).map((ref) => loadDetails(ref, true)),
+    );
   } catch (error) {
     status = error instanceof Error ? error.message : 'The watchlist could not load.';
   } finally {
@@ -339,6 +391,7 @@ const addComparison = async (ref: MediaRef): Promise<void> => {
     setStatus(`${titleOf(media)} added to the comparison desk.`);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : 'That card could not load.');
+    if (!token) document.querySelector<HTMLDialogElement>('#token-dialog')?.showModal();
   }
 };
 
@@ -394,7 +447,101 @@ const changeView = (next: View): void => {
   if (next === 'watchlist') void loadWatchlist();
 };
 
+function openName(purpose: typeof namePurpose) {
+  namePurpose = purpose;
+  const heading = document.querySelector('#name-heading');
+  if (heading)
+    heading.textContent =
+      purpose === 'list'
+        ? 'Create a local list'
+        : purpose === 'filter'
+          ? 'Save this filter view'
+          : 'Save comparison set';
+  document.querySelector<HTMLDialogElement>('#name-dialog')?.showModal();
+  document.querySelector<HTMLInputElement>('#item-name')?.focus();
+}
 const bindEvents = (): void => {
+  document.querySelector('[data-action="demo"]')?.addEventListener('click', () => {
+    results = structuredClone(demoCards);
+    status = 'Fictional offline examples loaded. No TMDB request was made.';
+    render();
+  });
+  document
+    .querySelector('[data-action="close-name"]')
+    ?.addEventListener('click', () =>
+      document.querySelector<HTMLDialogElement>('#name-dialog')?.close(),
+    );
+  document
+    .querySelector('[data-action="save-filter"]')
+    ?.addEventListener('click', () => openName('filter'));
+  document.querySelector('#name-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const name = document.querySelector<HTMLInputElement>('#item-name')?.value.trim() ?? '';
+    if (!name) return;
+    try {
+      if (namePurpose === 'list') createList(localStorage, name);
+      else if (namePurpose === 'comparison')
+        saveComparisonSet(
+          localStorage,
+          name,
+          compare.map((media) => ({ id: media.id, mediaType: media.media_type })),
+        );
+      else {
+        const filters = preferences(localStorage).filters.filter((f) => f.name !== name);
+        if (filters.length >= 30)
+          throw new Error(
+            'Limit of 30 saved filters reached. Reuse an existing name to replace it.',
+          );
+        filters.push({
+          name,
+          list: activeList,
+          status: activeStatus,
+          tag: activeTag,
+          sort: librarySort,
+        });
+        savePreferences(localStorage, selectedColumns, filters);
+      }
+      document.querySelector<HTMLDialogElement>('#name-dialog')?.close();
+      render();
+    } catch (error) {
+      const message = document.querySelector('#name-error');
+      if (message) message.textContent = error instanceof Error ? error.message : 'Could not save.';
+    }
+  });
+  document.querySelector('#include-notes')?.addEventListener('change', (event) => {
+    includePrivateNotes = (event.target as HTMLInputElement).checked;
+  });
+  document.querySelector('#saved-filter')?.addEventListener('change', (event) => {
+    const value = (event.target as HTMLSelectElement).value;
+    if (!value) return;
+    const saved = preferences(localStorage).filters[Number(value)];
+    if (saved) {
+      activeList = saved.list;
+      activeStatus = saved.status;
+      activeTag = saved.tag;
+      librarySort = saved.sort;
+      render();
+    }
+  });
+  document.querySelector('#column-preset')?.addEventListener('change', (event) => {
+    const selected = presets[(event.target as HTMLSelectElement).value];
+    if (selected) {
+      selectedColumns = [...selected];
+      savePreferences(localStorage, selectedColumns, preferences(localStorage).filters);
+      render();
+    }
+  });
+  document.querySelectorAll<HTMLInputElement>('[data-column-choice]').forEach((input) =>
+    input.addEventListener('change', () => {
+      const column = input.dataset.columnChoice as Column;
+      selectedColumns = input.checked
+        ? [...selectedColumns, column]
+        : selectedColumns.filter((c) => c !== column);
+      savePreferences(localStorage, selectedColumns, preferences(localStorage).filters);
+      render();
+    }),
+  );
+
   document
     .querySelectorAll<HTMLElement>('[data-view]')
     .forEach((button) =>
@@ -477,20 +624,22 @@ const bindEvents = (): void => {
     }),
   );
   document.querySelector('[data-action="new-list"]')?.addEventListener('click', () => {
-    const name = window.prompt('Name this local list:') ?? '';
-    try {
-      if (name) createList(localStorage, name);
-      render();
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'The list could not be created.');
-    }
+    openName('list');
   });
   document
     .querySelector('[data-action="backup"]')
     ?.addEventListener('click', () =>
       download(
         `screencard-backup-${new Date().toISOString().slice(0, 10)}.json`,
-        JSON.stringify(buildBackup(localStorage), null, 2),
+        JSON.stringify(
+          buildBackup(
+            localStorage,
+            undefined,
+            document.querySelector<HTMLInputElement>('#backup-notes')?.checked ?? false,
+          ),
+          null,
+          2,
+        ),
         'application/json;charset=utf-8',
       ),
     );
@@ -503,18 +652,7 @@ const bindEvents = (): void => {
     render();
   });
   document.querySelector('[data-action="save-comparison"]')?.addEventListener('click', () => {
-    const name = window.prompt('Name this comparison set:') ?? '';
-    try {
-      if (name)
-        saveComparisonSet(
-          localStorage,
-          name,
-          compare.map((media) => ({ id: media.id, mediaType: media.media_type })),
-        );
-      render();
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'The comparison could not be saved.');
-    }
+    openName('comparison');
   });
   document
     .querySelector('#saved-comparison')
