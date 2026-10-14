@@ -2,6 +2,13 @@
 
 All notable changes are documented here. This project follows Semantic Versioning.
 
+## 1.3.0 - 2026-10-14
+
+- Added case-insensitive, all-term local library search across titles, movie/TV IDs and tags. Search combines with existing list, status and tag filters without requiring a token.
+- Added CSV export of the visible, sorted library with viewing status, priority, personal ratings, tags, list names and TMDB links. Private notes require an explicit opt-in; quoted cells and formula neutralization protect spreadsheet use.
+- Patched existing Vitest, brace-expansion and source-map-js build/test dependency warnings with compatible versions.
+- Updated the visible runtime version and current-release documentation.
+
 ## 1.1.0 - 2026-08-10
 
 - Added named local lists with viewing states, priority, personal ratings, tags, filtering, and sorting.
