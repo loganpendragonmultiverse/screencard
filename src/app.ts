@@ -1,4 +1,6 @@
 import './styles.css';
+import { matchesLibraryQuery, exportLibraryCsv } from './library';
+import { version } from '../package.json';
 import {
   columns,
   presets,
@@ -61,6 +63,8 @@ let activeList = 'all';
 let activeStatus = 'all';
 let activeTag = '';
 let librarySort = 'priority';
+let libraryQuery = '';
+let includeCsvNotes = false;
 let compareSort = 'added';
 let selectedColumns = preferences(localStorage).columns;
 let includePrivateNotes = false;
@@ -107,7 +111,7 @@ const shell = (): string => `
   </header>
   <main>${content()}</main>
   <footer class="site-footer">
-    <span>Local-first. No accounts. No tracking.</span>
+    <span>ScreenCard v${version} · Local-first. No accounts. No tracking.</span>
     <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer"><img src="./assets/tmdb-logo.svg" alt="TMDB" /></a>
   </footer>
   <dialog id="name-dialog" aria-labelledby="name-heading"><form id="name-form"><h2 id="name-heading">Name your local item</h2><label>Name<input id="item-name" required maxlength="80" /></label><p id="name-error" role="alert"></p><footer><button type="button" data-action="close-name">Cancel</button><button type="submit">Save</button></footer></form></dialog>
@@ -237,6 +241,8 @@ const libraryToolbar = (): string => {
   const library = getLibrary(localStorage);
   const tags = [...new Set(library.entries.flatMap((entry) => entry.tags))].sort();
   return `<section class="library-toolbar">
+    <form id="library-search-form"><label for="library-query">Search local library</label><input id="library-query" type="search" value="${escapeHtml(libraryQuery)}" placeholder="Title, ID, or tags" maxlength="200" /><button type="submit">Filter</button><button type="button" data-action="clear-library-query">Clear search</button></form>
+    <div class="toolbar-actions"><label><input id="csv-notes" type="checkbox" ${includeCsvNotes ? 'checked' : ''} /> Include private notes in CSV</label><button data-action="export-library-csv" ${busy || !filteredLibrary().length ? 'disabled' : ''}>Export visible library CSV</button><span>${filteredLibrary().length} of ${library.entries.length} titles</span></div>
     <label>List<select id="list-filter"><option value="all">All lists</option>${library.lists.map((list) => `<option value="${escapeHtml(list.id)}" ${activeList === list.id ? 'selected' : ''}>${escapeHtml(list.name)}</option>`).join('')}</select></label>
     <label>Status<select id="status-filter"><option value="all">All states</option>${['want-to-watch', 'watching', 'watched', 'paused', 'skipped'].map((value) => `<option value="${value}" ${activeStatus === value ? 'selected' : ''}>${value.replaceAll('-', ' ')}</option>`).join('')}</select></label>
     <label>Tag<select id="tag-filter"><option value="">All tags</option>${tags.map((tag) => `<option ${activeTag === tag ? 'selected' : ''}>${escapeHtml(tag)}</option>`).join('')}</select></label>
@@ -245,7 +251,9 @@ const libraryToolbar = (): string => {
       localStorage,
     )
       .filters.map((filter, i) => `<option value="${i}">${escapeHtml(filter.name)}</option>`)
-      .join('')}</select></label><button data-action="save-filter">Save current filters</button>
+      .join(
+        '',
+      )}</select></label><button data-action="save-filter">Save list, state, tag and sort</button>
     <label><input id="backup-notes" type="checkbox" /> Include private notes in backup</label>
     <div class="toolbar-actions"><button data-action="new-list">New list</button><button data-action="backup">Export backup</button><label class="import-button">Import / merge<input id="backup-file" type="file" accept="application/json,.json" hidden /></label></div>
   </section>`;
@@ -261,7 +269,8 @@ const filteredLibrary = (): MediaDetails[] => {
         entry &&
         (activeList === 'all' || entry.listIds.includes(activeList)) &&
         (activeStatus === 'all' || entry.status === activeStatus) &&
-        (!activeTag || entry.tags.includes(activeTag)),
+        (!activeTag || entry.tags.includes(activeTag)) &&
+        matchesLibraryQuery(media, entry, libraryQuery),
       );
     })
     .sort((a, b) => {
@@ -292,7 +301,7 @@ const libraryCard = (media: MediaDetails): string => {
 };
 
 const aboutView = (): string => `
-  <section class="about-layout"><div><p class="eyebrow">About ScreenCard</p><h1>Research cards you control.</h1><p>ScreenCard is a static, self-hostable app. It sends searches directly from your browser to TMDB with the API Read Access Token you provide. There is no ScreenCard server, account, analytics, advertising, or tracking.</p><h2>What stays local</h2><p>Your watchlist IDs, comparison notes, and optional remembered token use this browser's storage. Clear site data to remove them. Choose session-only token storage on shared devices.</p><h2>Exports</h2><p>Markdown and JSON exports include the cards currently on your comparison desk, your local notes, and required data attribution.</p></div><aside class="credits-card"><img src="./assets/tmdb-logo.svg" alt="TMDB" /><h2>Data credits</h2><p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p><a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">Visit The Movie Database ↗</a><hr /><small>The included TMDB logo is an approved attribution asset and remains a trademark of its owner.</small></aside></section>`;
+  <section class="about-layout"><div><p class="eyebrow">About ScreenCard</p><h1>Research cards you control.</h1><p>ScreenCard is a static, self-hostable app. It sends searches directly from your browser to TMDB with the API Read Access Token you provide. There is no ScreenCard server, account, analytics, advertising, or tracking.</p><h2>What stays local</h2><p>Your watchlist IDs, comparison notes, and optional remembered token use this browser's storage. Clear site data to remove them. Choose session-only token storage on shared devices.</p><h2>Exports</h2><p>Markdown and JSON exports include comparison cards and required data attribution. Library CSV exports contain only the visible filtered titles and viewing metadata. Private notes are omitted unless you explicitly include them.</p></div><aside class="credits-card"><img src="./assets/tmdb-logo.svg" alt="TMDB" /><h2>Data credits</h2><p>This product uses the TMDB API but is not endorsed or certified by TMDB.</p><a href="https://www.themoviedb.org" target="_blank" rel="noreferrer">Visit The Movie Database ↗</a><hr /><small>The included TMDB logo is an approved attribution asset and remains a trademark of its owner.</small></aside></section>`;
 
 const emptyState = (title: string, copy: string, action = ''): string =>
   `<div class="empty-state"><span>◇</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(copy)}</p>${action}</div>`;
@@ -461,6 +470,28 @@ function openName(purpose: typeof namePurpose) {
   document.querySelector<HTMLInputElement>('#item-name')?.focus();
 }
 const bindEvents = (): void => {
+  document.querySelector('#library-search-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    libraryQuery = document.querySelector<HTMLInputElement>('#library-query')?.value.trim() ?? '';
+    render();
+    document.querySelector<HTMLInputElement>('#library-query')?.focus();
+  });
+  document.querySelector('[data-action="clear-library-query"]')?.addEventListener('click', () => {
+    libraryQuery = '';
+    render();
+  });
+  document.querySelector('#csv-notes')?.addEventListener('change', (event) => {
+    includeCsvNotes = (event.target as HTMLInputElement).checked;
+  });
+  document.querySelector('[data-action="export-library-csv"]')?.addEventListener('click', () => {
+    const cards = filteredLibrary();
+    if (busy || !cards.length) return;
+    download(
+      `screencard-library-${new Date().toISOString().slice(0, 10)}.csv`,
+      exportLibraryCsv(cards, getLibrary(localStorage), getNotes(localStorage), includeCsvNotes),
+      'text/csv;charset=utf-8',
+    );
+  });
   document.querySelector('[data-action="demo"]')?.addEventListener('click', () => {
     results = structuredClone(demoCards);
     status = 'Fictional offline examples loaded. No TMDB request was made.';
@@ -516,6 +547,7 @@ const bindEvents = (): void => {
     if (!value) return;
     const saved = preferences(localStorage).filters[Number(value)];
     if (saved) {
+      libraryQuery = '';
       activeList = saved.list;
       activeStatus = saved.status;
       activeTag = saved.tag;

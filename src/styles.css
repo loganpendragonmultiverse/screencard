@@ -906,3 +906,32 @@ dialog::backdrop {
   place-items: center;
   color: var(--muted);
 }
+
+#library-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+#library-search-form label {
+  flex-basis: 100%;
+}
+#library-query {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 12px;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
+#library-search-form button {
+  padding: 10px 14px;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+}

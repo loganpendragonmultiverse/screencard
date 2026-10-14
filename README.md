@@ -10,6 +10,8 @@ a static site that can run from GitHub Pages, any ordinary web host, or a local 
 ## What makes it useful
 
 - Search movies and TV series together without mixing people into the results.
+- Search your local library by title, movie/TV ID, or tags without a token.
+- Export the visible library to spreadsheet-safe CSV, with private notes omitted by default.
 - Compare rating, runtime or episode structure, status, genres, directors or lead producers, cast,
   synopsis, trailers, and TMDB pages side by side.
 - Organize titles into named local lists with viewing state, priority, personal rating, and tags.
@@ -99,8 +101,11 @@ notes, so review them before sharing.
 
 ## Current release
 
-Version 1.1.0 adds named libraries, viewing states, ratings, priorities and tags; sortable
-difference-aware comparisons and saved sets; merge-preview backups; and note-free share exports.
+Version 1.3.0 adds local library text search and CSV export of the current filtered, sorted view.
+Search terms match titles, IDs and tags together; private notes are not searched. CSV includes
+viewing metadata and list names, preserves the visible order, and includes notes only when the
+separate checkbox is enabled. Formula-like cells are prefixed with an apostrophe for spreadsheet
+safety. Uncached titles remain searchable by their local IDs; fictional demos have no TMDB link.
 
 ## Attribution
 
