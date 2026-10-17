@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 - 2026-10-17
+
+- Label the saved comparison selector so assistive technology identifies its purpose on both empty and populated desks.
+
 ## 1.4.0 - 2026-10-17
 
 - Keep each saved library reference usable when its TMDB refresh fails; show cached details or a local reference with a refresh warning.

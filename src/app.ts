@@ -218,7 +218,7 @@ const orderedComparison = (): MediaDetails[] =>
 
 const compareView = (): string => `
   <section class="page-intro"><p>Side-by-side research</p><h1>Comparison desk</h1><span>Keep the differences visible. Notes and selections remain on this device.</span></section>
-  <div class="export-bar comparison-tools"><div><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
+  <div class="export-bar comparison-tools"><div><label for="saved-comparison">Saved comparison set</label><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
     localStorage,
   )
     .map(
