@@ -116,3 +116,48 @@ export function localReference(ref: MediaRef): MediaDetails {
     release_date: '',
   };
 }
+
+/** Keep saved references usable when one provider refresh fails. */
+export async function resolveLocalDetails(
+  store: Storage,
+  ref: MediaRef,
+  refresh: () => Promise<MediaDetails>,
+): Promise<{ media: MediaDetails; label: string; warning: string }> {
+  try {
+    const media = await refresh();
+    return { media, label: detailCache(store, ref)?.label ?? 'Fresh TMDB details', warning: '' };
+  } catch {
+    const cached = detailCache(store, ref);
+    return {
+      media: cached?.media ?? localReference(ref),
+      label: `Refresh failed · ${cached?.label ?? 'Local reference · no cached details'}`,
+      warning:
+        'TMDB refresh failed for some saved titles. Cached details or editable local references are shown.',
+    };
+  }
+}
+export function renameSavedFilter(store: Storage, name: string, nextName: string): void {
+  const saved = preferences(store);
+  const filter = saved.filters.find((item) => item.name === name);
+  if (!filter) throw new Error('Saved view was not found.');
+  const clean = nextName.trim();
+  if (!clean) throw new Error('Name is required.');
+  if (
+    saved.filters.some(
+      (item) => item !== filter && item.name.toLocaleLowerCase() === clean.toLocaleLowerCase(),
+    )
+  )
+    throw new Error('A saved view with that name already exists.');
+  filter.name = clean;
+  savePreferences(store, saved.columns, saved.filters);
+}
+export function deleteSavedFilter(store: Storage, name: string): void {
+  const saved = preferences(store);
+  if (!saved.filters.some((item) => item.name === name))
+    throw new Error('Saved view was not found.');
+  savePreferences(
+    store,
+    saved.columns,
+    saved.filters.filter((item) => item.name !== name),
+  );
+}

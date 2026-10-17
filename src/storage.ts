@@ -511,3 +511,54 @@ export const clearToken = (session: Storage, local: Storage): void => {
   session.removeItem(TOKEN_KEY);
   local.removeItem(TOKEN_KEY);
 };
+
+const cleanName = (name: string): string => {
+  const clean = name.trim();
+  if (!clean) throw new Error('Name is required.');
+  return clean;
+};
+export const renameList = (store: Storage, id: string, name: string): void => {
+  if (id === DEFAULT_LIST_ID) throw new Error('The default Watchlist cannot be renamed.');
+  const library = getLibrary(store);
+  const list = library.lists.find((item) => item.id === id);
+  if (!list) throw new Error('List was not found.');
+  const clean = cleanName(name);
+  if (
+    library.lists.some(
+      (item) => item.id !== id && item.name.toLocaleLowerCase() === clean.toLocaleLowerCase(),
+    )
+  )
+    throw new Error('A list with that name already exists.');
+  list.name = clean;
+  saveLibrary(store, library);
+};
+export const deleteList = (store: Storage, id: string): void => {
+  if (id === DEFAULT_LIST_ID) throw new Error('The default Watchlist cannot be deleted.');
+  const library = getLibrary(store);
+  if (!library.lists.some((item) => item.id === id)) throw new Error('List was not found.');
+  library.lists = library.lists.filter((item) => item.id !== id);
+  library.entries = library.entries.map((entry) => {
+    const listIds = entry.listIds.filter((value) => value !== id);
+    return { ...entry, listIds: listIds.length ? listIds : [DEFAULT_LIST_ID] };
+  });
+  saveLibrary(store, library);
+};
+export const renameComparisonSet = (store: Storage, id: string, name: string): void => {
+  const sets = getComparisonSets(store);
+  const set = sets.find((item) => item.id === id);
+  if (!set) throw new Error('Comparison set was not found.');
+  const clean = cleanName(name);
+  if (
+    sets.some(
+      (item) => item.id !== id && item.name.toLocaleLowerCase() === clean.toLocaleLowerCase(),
+    )
+  )
+    throw new Error('A comparison set with that name already exists.');
+  set.name = clean;
+  store.setItem(COMPARISONS_KEY, JSON.stringify(sets));
+};
+export const deleteComparisonSet = (store: Storage, id: string): void => {
+  const sets = getComparisonSets(store);
+  if (!sets.some((item) => item.id === id)) throw new Error('Comparison set was not found.');
+  store.setItem(COMPARISONS_KEY, JSON.stringify(sets.filter((item) => item.id !== id)));
+};

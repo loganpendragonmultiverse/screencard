@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0 - 2026-10-17
+
+- Keep each saved library reference usable when its TMDB refresh fails; show cached details or a local reference with a refresh warning.
+- Rename and delete custom lists, saved comparison sets and saved filter views. List deletion keeps titles and notes and moves otherwise unassigned titles to Watchlist.
+- Preserve the default Watchlist and reject conflicting names before saving.
+
 ## 1.3.2 - 2026-10-17
 
 - Normalize existing v2 lists and entries independently, retaining usable entries when a container is malformed without rewriting stored source bytes during reads.

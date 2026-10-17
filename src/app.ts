@@ -9,6 +9,9 @@ import {
   detailCache,
   demoCards,
   localReference,
+  resolveLocalDetails,
+  renameSavedFilter,
+  deleteSavedFilter,
 } from './research';
 import type { Column } from './research';
 import { buildExport, exportJson, exportMarkdown } from './export';
@@ -28,6 +31,10 @@ import {
   setToken,
   toggleWatchlist,
   updateLibraryEntry,
+  renameList,
+  deleteList,
+  renameComparisonSet,
+  deleteComparisonSet,
 } from './storage';
 import {
   directorsOf,
@@ -64,11 +71,15 @@ let activeStatus = 'all';
 let activeTag = '';
 let librarySort = 'priority';
 let libraryQuery = '';
+let selectedFilterName = '';
 let includeCsvNotes = false;
 let compareSort = 'added';
+let selectedComparisonId = '';
 let selectedColumns = preferences(localStorage).columns;
 let includePrivateNotes = false;
-let namePurpose: 'list' | 'comparison' | 'filter' = 'list';
+let namePurpose:
+  'list' | 'comparison' | 'filter' | 'rename-list' | 'rename-comparison' | 'rename-filter' = 'list';
+let nameTarget = '';
 const provenance = new Map<string, string>();
 
 const escapeHtml = (value: unknown): string =>
@@ -207,6 +218,16 @@ const orderedComparison = (): MediaDetails[] =>
 
 const compareView = (): string => `
   <section class="page-intro"><p>Side-by-side research</p><h1>Comparison desk</h1><span>Keep the differences visible. Notes and selections remain on this device.</span></section>
+  <div class="export-bar comparison-tools"><div><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
+    localStorage,
+  )
+    .map(
+      (set) =>
+        `<option value="${escapeHtml(set.id)}" ${set.id === selectedComparisonId ? 'selected' : ''}>${escapeHtml(set.name)}</option>`,
+    )
+    .join(
+      '',
+    )}</select><button data-action="rename-comparison">Rename set</button><button data-action="delete-comparison">Delete set</button></div></div>
   ${
     compare.length
       ? `<div class="column-tools"><label>Comparison preset<select id="column-preset"><option value="custom">Custom columns</option>${Object.keys(
@@ -218,13 +239,7 @@ const compareView = (): string => `
           )
           .join(
             '',
-          )}</select></label><fieldset><legend>Visible comparison fields</legend>${columns.map((column) => `<label><input type="checkbox" data-column-choice="${column}" ${selectedColumns.includes(column) ? 'checked' : ''} /> ${column}</label>`).join('')}</fieldset><p>These controls change the comparison view. Research exports contain full card details; private notes are optional.</p></div><div class="export-bar comparison-tools"><label>Sort<select id="compare-sort"><option value="added">Added order</option><option value="rating" ${compareSort === 'rating' ? 'selected' : ''}>Rating</option><option value="year" ${compareSort === 'year' ? 'selected' : ''}>Year</option><option value="title" ${compareSort === 'title' ? 'selected' : ''}>Title</option></select></label><label class="include-notes"><input id="include-notes" type="checkbox" ${includePrivateNotes ? 'checked' : ''} /> Include private notes</label><div><button data-action="save-comparison">Save set</button><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
-          localStorage,
-        )
-          .map((set) => `<option value="${escapeHtml(set.id)}">${escapeHtml(set.name)}</option>`)
-          .join(
-            '',
-          )}</select><button data-action="export-md">Export Markdown</button><button data-action="export-json">Export JSON</button></div></div><section class="comparison-grid" style="--columns:${compare.length}">${orderedComparison().map(comparisonCard).join('')}</section>`
+          )}</select></label><fieldset><legend>Visible comparison fields</legend>${columns.map((column) => `<label><input type="checkbox" data-column-choice="${column}" ${selectedColumns.includes(column) ? 'checked' : ''} /> ${column}</label>`).join('')}</fieldset><p>These controls change the comparison view. Research exports contain full card details; private notes are optional.</p></div><div class="export-bar comparison-tools"><label>Sort<select id="compare-sort"><option value="added">Added order</option><option value="rating" ${compareSort === 'rating' ? 'selected' : ''}>Rating</option><option value="year" ${compareSort === 'year' ? 'selected' : ''}>Year</option><option value="title" ${compareSort === 'title' ? 'selected' : ''}>Title</option></select></label><label class="include-notes"><input id="include-notes" type="checkbox" ${includePrivateNotes ? 'checked' : ''} /> Include private notes</label><div><button data-action="save-comparison">Save set</button><button data-action="export-md">Export Markdown</button><button data-action="export-json">Export JSON</button></div></div><section class="comparison-grid" style="--columns:${compare.length}">${orderedComparison().map(comparisonCard).join('')}</section>`
       : emptyState(
           'No cards selected yet.',
           'Return to Discover and select up to four movies or series.',
@@ -244,16 +259,25 @@ const libraryToolbar = (): string => {
     <form id="library-search-form"><label for="library-query">Search local library</label><input id="library-query" type="search" value="${escapeHtml(libraryQuery)}" placeholder="Title, ID, or tags" maxlength="200" /><button type="submit">Filter</button><button type="button" data-action="clear-library-query">Clear search</button></form>
     <div class="toolbar-actions"><label><input id="csv-notes" type="checkbox" ${includeCsvNotes ? 'checked' : ''} /> Include private notes in CSV</label><button data-action="export-library-csv" ${busy || !filteredLibrary().length ? 'disabled' : ''}>Export visible library CSV</button><span>${filteredLibrary().length} of ${library.entries.length} titles</span></div>
     <label>List<select id="list-filter"><option value="all">All lists</option>${library.lists.map((list) => `<option value="${escapeHtml(list.id)}" ${activeList === list.id ? 'selected' : ''}>${escapeHtml(list.name)}</option>`).join('')}</select></label>
+    <div class="toolbar-actions"><label>Manage list<select id="manage-list"><option value="">Choose a custom list…</option>${library.lists
+      .filter((list) => list.id !== 'default')
+      .map((list) => `<option value="${escapeHtml(list.id)}">${escapeHtml(list.name)}</option>`)
+      .join(
+        '',
+      )}</select></label><button data-action="rename-list">Rename list</button><button data-action="delete-list">Delete list</button></div>
     <label>Status<select id="status-filter"><option value="all">All states</option>${['want-to-watch', 'watching', 'watched', 'paused', 'skipped'].map((value) => `<option value="${value}" ${activeStatus === value ? 'selected' : ''}>${value.replaceAll('-', ' ')}</option>`).join('')}</select></label>
     <label>Tag<select id="tag-filter"><option value="">All tags</option>${tags.map((tag) => `<option ${activeTag === tag ? 'selected' : ''}>${escapeHtml(tag)}</option>`).join('')}</select></label>
     <label>Sort<select id="library-sort"><option value="priority">Priority</option><option value="rating" ${librarySort === 'rating' ? 'selected' : ''}>Personal rating</option><option value="added" ${librarySort === 'added' ? 'selected' : ''}>Recently added</option><option value="title" ${librarySort === 'title' ? 'selected' : ''}>Title</option></select></label>
     <label>Saved filters<select id="saved-filter"><option value="">Choose a saved view</option>${preferences(
       localStorage,
     )
-      .filters.map((filter, i) => `<option value="${i}">${escapeHtml(filter.name)}</option>`)
+      .filters.map(
+        (filter, i) =>
+          `<option value="${i}" ${filter.name === selectedFilterName ? 'selected' : ''}>${escapeHtml(filter.name)}</option>`,
+      )
       .join(
         '',
-      )}</select></label><button data-action="save-filter">Save list, state, tag and sort</button>
+      )}</select></label><button data-action="save-filter">Save list, state, tag and sort</button><button data-action="rename-filter">Rename view</button><button data-action="delete-filter">Delete view</button>
     <label><input id="backup-notes" type="checkbox" /> Include private notes in backup</label>
     <div class="toolbar-actions"><button data-action="new-list">New list</button><button data-action="backup">Export backup</button><label class="import-button">Import / merge<input id="backup-file" type="file" accept="application/json,.json" hidden /></label></div>
   </section>`;
@@ -291,7 +315,7 @@ const libraryCard = (media: MediaDetails): string => {
   const library = getLibrary(localStorage);
   const entry = library.entries.find((item) => `${item.mediaType}:${item.id}` === mediaKey(media))!;
   const poster = imageUrl(media.poster_path, 'w500');
-  return `<article class="result-card library-card"><div class="poster-wrap">${poster ? `<img src="${poster}" alt="Poster for ${escapeHtml(titleOf(media))}" loading="lazy" />` : '<div class="poster-fallback">No poster</div>'}</div><div class="result-copy"><h3>${escapeHtml(titleOf(media))}</h3><small>${escapeHtml(yearOf(media))}</small>
+  return `<article class="result-card library-card"><div class="poster-wrap">${poster ? `<img src="${poster}" alt="Poster for ${escapeHtml(titleOf(media))}" loading="lazy" />` : '<div class="poster-fallback">No poster</div>'}</div><div class="result-copy"><h3>${escapeHtml(titleOf(media))}</h3><small>${escapeHtml(yearOf(media))}</small><p class="cache-evidence">${escapeHtml(provenance.get(mediaKey(media)) ?? 'Local card')}</p>
     <label>Status<select data-entry="${mediaKey(media)}" data-field="status">${['want-to-watch', 'watching', 'watched', 'paused', 'skipped'].map((value) => `<option value="${value}" ${entry.status === value ? 'selected' : ''}>${value.replaceAll('-', ' ')}</option>`).join('')}</select></label>
     <label>Priority<select data-entry="${mediaKey(media)}" data-field="priority">${['high', 'normal', 'low'].map((value) => `<option ${entry.priority === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label>
     <label>Personal rating<input data-entry="${mediaKey(media)}" data-field="rating" type="number" min="0" max="10" step="0.5" value="${entry.personalRating ?? ''}" placeholder="0–10" /></label>
@@ -354,6 +378,14 @@ const loadDetails = async (ref: MediaRef, allowLocal = false): Promise<MediaDeta
     }
     throw new Error('Connect a TMDB token to load uncached details.');
   }
+  if (allowLocal) {
+    const resolved = await resolveLocalDetails(localStorage, ref, () =>
+      getMediaDetails(ref.mediaType, ref.id, token, localStorage),
+    );
+    provenance.set(mediaKey(resolved.media), resolved.label);
+    if (resolved.warning) status = resolved.warning;
+    return resolved.media;
+  }
   const media = await getMediaDetails(ref.mediaType, ref.id, token, localStorage);
   provenance.set(mediaKey(media), detailCache(localStorage, ref)?.label ?? 'Fresh TMDB details');
   return media;
@@ -395,7 +427,7 @@ const loadWatchlist = async (): Promise<void> => {
 const addComparison = async (ref: MediaRef): Promise<void> => {
   if (compare.length >= 4) return setStatus('Remove a card before adding another comparison.');
   try {
-    const media = await loadDetails(ref);
+    const media = await loadDetails(ref, isWatched({ id: ref.id, media_type: ref.mediaType }));
     if (!compare.some((item) => mediaKey(item) === mediaKey(media))) compare = [...compare, media];
     setStatus(`${titleOf(media)} added to the comparison desk.`);
   } catch (error) {
@@ -419,9 +451,10 @@ const exportCards = (format: 'md' | 'json'): void => {
 const loadComparisonSet = async (id: string): Promise<void> => {
   const saved = getComparisonSets(localStorage).find((set) => set.id === id);
   if (!saved) return;
+  selectedComparisonId = id;
   try {
     compare = await Promise.all(
-      saved.media.slice(0, 4).map((ref) => loadDetails({ ...ref, addedAt: saved.savedAt })),
+      saved.media.slice(0, 4).map((ref) => loadDetails({ ...ref, addedAt: saved.savedAt }, true)),
     );
     setStatus(`${saved.name} loaded.`);
   } catch (error) {
@@ -456,20 +489,69 @@ const changeView = (next: View): void => {
   if (next === 'watchlist') void loadWatchlist();
 };
 
-function openName(purpose: typeof namePurpose) {
+function openName(purpose: typeof namePurpose, target = '', currentName = '') {
   namePurpose = purpose;
+  nameTarget = target;
   const heading = document.querySelector('#name-heading');
   if (heading)
-    heading.textContent =
-      purpose === 'list'
+    heading.textContent = purpose.startsWith('rename-')
+      ? 'Rename saved item'
+      : purpose === 'list'
         ? 'Create a local list'
         : purpose === 'filter'
           ? 'Save this filter view'
           : 'Save comparison set';
+  const nameInput = document.querySelector<HTMLInputElement>('#item-name');
+  if (nameInput) nameInput.value = currentName;
   document.querySelector<HTMLDialogElement>('#name-dialog')?.showModal();
   document.querySelector<HTMLInputElement>('#item-name')?.focus();
 }
 const bindEvents = (): void => {
+  for (const kind of ['list', 'comparison', 'filter'] as const) {
+    for (const action of ['rename', 'delete'] as const) {
+      document.querySelector(`[data-action="${action}-${kind}"]`)?.addEventListener('click', () => {
+        const selection = document.querySelector<HTMLSelectElement>(
+          kind === 'list'
+            ? '#manage-list'
+            : kind === 'comparison'
+              ? '#saved-comparison'
+              : '#saved-filter',
+        )?.value;
+        if (!selection) return setStatus('Choose a saved item first.');
+        const item =
+          kind === 'list'
+            ? getLibrary(localStorage).lists.find((list) => list.id === selection)
+            : kind === 'comparison'
+              ? getComparisonSets(localStorage).find((set) => set.id === selection)
+              : preferences(localStorage).filters[Number(selection)];
+        if (!item) return setStatus('That saved item was not found.');
+        const target = 'id' in item ? item.id : item.name;
+        if (action === 'rename') return openName(`rename-${kind}`, target, item.name);
+        const explanation =
+          kind === 'list'
+            ? ' Titles and notes are kept. Titles without another list move to Watchlist.'
+            : kind === 'comparison'
+              ? ' Only this saved set is removed; titles, notes and the current comparison stay.'
+              : ' Only this saved view is removed; library data stays.';
+        if (!window.confirm(`Delete “${item.name}”?${explanation}`)) return;
+        try {
+          if (kind === 'list') {
+            deleteList(localStorage, target);
+            if (activeList === target) activeList = 'all';
+          } else if (kind === 'comparison') {
+            deleteComparisonSet(localStorage, target);
+            selectedComparisonId = '';
+          } else {
+            deleteSavedFilter(localStorage, target);
+            selectedFilterName = '';
+          }
+          setStatus('Saved item deleted.');
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : 'Could not delete.');
+        }
+      });
+    }
+  }
   document.querySelector('#library-search-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
     libraryQuery = document.querySelector<HTMLInputElement>('#library-query')?.value.trim() ?? '';
@@ -510,7 +592,13 @@ const bindEvents = (): void => {
     const name = document.querySelector<HTMLInputElement>('#item-name')?.value.trim() ?? '';
     if (!name) return;
     try {
-      if (namePurpose === 'list') createList(localStorage, name);
+      if (namePurpose === 'rename-list') renameList(localStorage, nameTarget, name);
+      else if (namePurpose === 'rename-comparison')
+        renameComparisonSet(localStorage, nameTarget, name);
+      else if (namePurpose === 'rename-filter') {
+        renameSavedFilter(localStorage, nameTarget, name);
+        selectedFilterName = name;
+      } else if (namePurpose === 'list') createList(localStorage, name);
       else if (namePurpose === 'comparison')
         saveComparisonSet(
           localStorage,
@@ -547,8 +635,13 @@ const bindEvents = (): void => {
     if (!value) return;
     const saved = preferences(localStorage).filters[Number(value)];
     if (saved) {
+      selectedFilterName = saved.name;
       libraryQuery = '';
-      activeList = saved.list;
+      activeList =
+        saved.list === 'all' ||
+        getLibrary(localStorage).lists.some((list) => list.id === saved.list)
+          ? saved.list
+          : 'all';
       activeStatus = saved.status;
       activeTag = saved.tag;
       librarySort = saved.sort;

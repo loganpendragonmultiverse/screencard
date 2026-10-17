@@ -74,3 +74,7 @@ Cache writes must not discard a successful provider response. Only `screencard:c
 ## Version 1.3.2: legacy migration and malformed roots
 
 Normalize v2 lists and entries independently and never rewrite present malformed/unsupported v2 source during recovery reads. Only migrate a valid legacy watchlist when the v2 key is absent, recheck absence before writing, preserve the legacy source, and treat failed migration writes as best effort so the usable legacy view remains available. Tests cover malformed lists with a valid v2 entry plus retained legacy data, absent-v2 writable migration, quota/blocked-write migration, and preservation of malformed/unsupported v2 bytes. Provider and token functions remain unchanged.
+
+## Version 1.4.0: provider fallback and saved-item management
+
+Exercise per-reference refresh failures with a retained synthetic token: stale cached and uncached library titles must remain visible/editable, warning labels must identify fallback, and successful siblings must still load. Search errors remain explicit. Test rename/delete/cancel for custom lists, comparison sets and saved views. List deletion retains entries, notes, other memberships and metadata; entries with no remaining membership move to Watchlist. The default Watchlist is protected. Saved views whose list was deleted reopen across all lists. Provider/token request functions remain unchanged; automated provider acceptance uses fixtures.
