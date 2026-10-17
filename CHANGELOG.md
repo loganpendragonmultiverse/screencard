@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1 - 2026-10-17
+
+- Keep successful TMDB responses usable when optional cache writes fail; evict only this app's own oldest cache entries when quota or the 100-entry bound requires it.
+
+- Keep usable library records, notes and comparison sets available when stored JSON has malformed records, without rewriting the stored source during recovery reads.
+- Validate complete version 2 backups and their identities before preview or merge, rejecting invalid notes, entries and list references without changing local data.
+- Remap colliding imported list and comparison IDs while preserving existing memberships; avoid new local ID collisions within one clock tick.
+- Restore completed backup writes after handled storage failures and explain whether retry or inspection is needed.
+- Record owner-reported real TMDB acceptance separately from automated fixture tests. Provider and token functions are unchanged.
+
 All notable changes are documented here. This project follows Semantic Versioning.
 
 ## 1.3.0 - 2026-10-14

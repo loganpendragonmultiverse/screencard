@@ -6,6 +6,7 @@ import type {
   MediaRef,
   MediaType,
   ScreenCardBackup,
+  SavedList,
 } from './types';
 
 const CACHE_PREFIX = 'screencard:cache:';
@@ -26,10 +27,93 @@ const readJson = <T>(store: Storage, key: string, fallback: T): T => {
   }
 };
 
-const validRef = (item: MediaRef): boolean =>
+const record = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+const strings = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string');
+const validRef = (item: unknown): item is MediaRef =>
+  record(item) &&
   Number.isInteger(item.id) &&
   (item.mediaType === 'movie' || item.mediaType === 'tv') &&
   Number.isFinite(item.addedAt);
+const validList = (item: unknown): item is SavedList =>
+  record(item) &&
+  typeof item.id === 'string' &&
+  Boolean(item.id.trim()) &&
+  typeof item.name === 'string' &&
+  Boolean(item.name.trim()) &&
+  Number.isFinite(item.createdAt);
+const statuses = ['want-to-watch', 'watching', 'watched', 'paused', 'skipped'];
+const priorities = ['low', 'normal', 'high'];
+const validEntry = (item: unknown): item is LibraryEntry =>
+  validRef(item) &&
+  record(item) &&
+  strings(item.listIds) &&
+  strings(item.tags) &&
+  statuses.includes(String(item.status)) &&
+  priorities.includes(String(item.priority)) &&
+  (item.personalRating === null ||
+    (typeof item.personalRating === 'number' &&
+      Number.isFinite(item.personalRating) &&
+      item.personalRating >= 0 &&
+      item.personalRating <= 10));
+const validComparison = (item: unknown): item is ComparisonSet =>
+  record(item) &&
+  typeof item.id === 'string' &&
+  Boolean(item.id.trim()) &&
+  typeof item.name === 'string' &&
+  Boolean(item.name.trim()) &&
+  Number.isFinite(item.savedAt) &&
+  Array.isArray(item.media) &&
+  item.media.length <= 4 &&
+  item.media.every(
+    (ref: unknown) =>
+      record(ref) &&
+      Number.isInteger(ref.id) &&
+      (ref.mediaType === 'movie' || ref.mediaType === 'tv'),
+  );
+const unique = (values: string[]): boolean => new Set(values).size === values.length;
+const unusedId = (desired: string, ids: Set<string>): string => {
+  let result = desired;
+  let suffix = 2;
+  while (ids.has(result)) result = `${desired}-${suffix++}`;
+  return result;
+};
+function assertBackup(value: unknown): asserts value is ScreenCardBackup {
+  if (
+    !record(value) ||
+    value.format !== 'screencard-backup' ||
+    value.version !== 2 ||
+    typeof value.exportedAt !== 'string' ||
+    !record(value.library) ||
+    value.library.version !== 2 ||
+    !Array.isArray(value.library.lists) ||
+    !value.library.lists.every(validList) ||
+    !Array.isArray(value.library.entries) ||
+    !value.library.entries.every(validEntry) ||
+    !record(value.notes) ||
+    !Object.values(value.notes).every((note) => typeof note === 'string') ||
+    !Array.isArray(value.comparisonSets) ||
+    !value.comparisonSets.every(validComparison)
+  ) {
+    throw new Error('Unsupported or invalid ScreenCard backup. No local data was changed.');
+  }
+  const lists = value.library.lists;
+  const entries = value.library.entries;
+  const listIds = new Set(lists.map((list) => list.id));
+  if (
+    !unique(lists.map((list) => list.id)) ||
+    !unique(lists.map((list) => list.name.toLocaleLowerCase())) ||
+    !unique(entries.map((entry) => `${entry.mediaType}:${entry.id}`)) ||
+    entries.some((entry) => entry.listIds.some((id) => !listIds.has(id))) ||
+    !unique(value.comparisonSets.map((set) => set.id)) ||
+    !unique(value.comparisonSets.map((set) => set.name.toLocaleLowerCase()))
+  ) {
+    throw new Error(
+      'Backup contains duplicate identities or unknown lists. No local data was changed.',
+    );
+  }
+}
 
 const defaultLibrary = (): LibraryState => ({
   version: 2,
@@ -41,32 +125,57 @@ export const cacheKey = (path: string): string => `${CACHE_PREFIX}${path}`;
 
 export const getCached = <T>(store: Storage, key: string, now = Date.now()): T | null => {
   const record = readJson<CacheRecord<T> | null>(store, cacheKey(key), null);
-  if (!record || record.expiresAt <= now) {
+  if (!record || !Number.isFinite(record.expiresAt) || record.expiresAt <= now) {
     return null;
   }
   return record.data;
 };
 
 export const setCached = <T>(store: Storage, key: string, data: T, now = Date.now()): void => {
-  const record: CacheRecord<T> = { savedAt: now, expiresAt: now + MAX_CACHE_AGE, data };
-  store.setItem(cacheKey(key), JSON.stringify(record));
-  const keys = Array.from({ length: store.length }, (_, i) => store.key(i)).filter(
-    (k): k is string => Boolean(k?.startsWith(CACHE_PREFIX)),
-  );
-  keys.sort(
-    (a, b) =>
-      (readJson<CacheRecord<unknown> | null>(store, a, null)?.savedAt ?? 0) -
-      (readJson<CacheRecord<unknown> | null>(store, b, null)?.savedAt ?? 0),
-  );
-  for (const old of keys.slice(0, Math.max(0, keys.length - 100))) store.removeItem(old);
+  // A cache is optional: storage pressure must not discard a valid provider response.
+  try {
+    const target = cacheKey(key);
+    const value = JSON.stringify({ savedAt: now, expiresAt: now + MAX_CACHE_AGE, data });
+    const others = Array.from({ length: store.length }, (_, i) => store.key(i)).filter(
+      (item): item is string => Boolean(item?.startsWith(CACHE_PREFIX)) && item !== target,
+    );
+    others.sort(
+      (a, b) =>
+        (readJson<CacheRecord<unknown> | null>(store, a, null)?.savedAt ?? 0) -
+        (readJson<CacheRecord<unknown> | null>(store, b, null)?.savedAt ?? 0),
+    );
+    const write = (): boolean => {
+      try {
+        store.setItem(target, value);
+        return true;
+      } catch (error) {
+        if (
+          !record(error) ||
+          !['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(String(error.name))
+        )
+          throw error;
+        return false;
+      }
+    };
+    let saved = write();
+    while (!saved && others.length) {
+      store.removeItem(others.shift()!);
+      saved = write();
+    }
+    if (saved) {
+      for (const old of others.slice(0, Math.max(0, others.length - 99))) store.removeItem(old);
+    }
+  } catch {
+    // Never evict library, note or token keys, and never fail a successful fetch.
+  }
 };
 
 export const getLibrary = (store: Storage): LibraryState => {
   const stored = readJson<LibraryState | null>(store, LIBRARY_KEY, null);
   if (stored?.version === 2 && Array.isArray(stored.lists) && Array.isArray(stored.entries)) {
-    const lists = stored.lists.filter(
-      (list) => typeof list.id === 'string' && typeof list.name === 'string',
-    );
+    const lists = stored.lists
+      .filter(validList)
+      .filter((list, index, all) => all.findIndex((other) => other.id === list.id) === index);
     if (!lists.some((list) => list.id === DEFAULT_LIST_ID)) {
       lists.unshift({ id: DEFAULT_LIST_ID, name: 'Watchlist', createdAt: 0 });
     }
@@ -77,22 +186,36 @@ export const getLibrary = (store: Storage): LibraryState => {
         listIds.has(id),
       ),
       tags: [
-        ...new Set(Array.isArray(entry.tags) ? entry.tags.map((tag) => tag.trim()) : []),
+        ...new Set(
+          Array.isArray(entry.tags)
+            ? entry.tags
+                .filter((tag): tag is string => typeof tag === 'string')
+                .map((tag) => tag.trim())
+            : [],
+        ),
       ].filter(Boolean),
+      status: statuses.includes(entry.status) ? entry.status : ('want-to-watch' as const),
+      priority: priorities.includes(entry.priority) ? entry.priority : ('normal' as const),
+      personalRating:
+        typeof entry.personalRating === 'number' &&
+        Number.isFinite(entry.personalRating) &&
+        entry.personalRating >= 0 &&
+        entry.personalRating <= 10
+          ? entry.personalRating
+          : null,
     }));
     return { version: 2, lists, entries };
   }
   const migrated = defaultLibrary();
-  migrated.entries = readJson<MediaRef[]>(store, LEGACY_WATCHLIST_KEY, [])
-    .filter(validRef)
-    .map((item) => ({
-      ...item,
-      listIds: [DEFAULT_LIST_ID],
-      status: 'want-to-watch',
-      priority: 'normal',
-      personalRating: null,
-      tags: [],
-    }));
+  const legacy = readJson<unknown>(store, LEGACY_WATCHLIST_KEY, []);
+  migrated.entries = (Array.isArray(legacy) ? legacy : []).filter(validRef).map((item) => ({
+    ...item,
+    listIds: [DEFAULT_LIST_ID],
+    status: 'want-to-watch',
+    priority: 'normal',
+    personalRating: null,
+    tags: [],
+  }));
   if (migrated.entries.length) store.setItem(LIBRARY_KEY, JSON.stringify(migrated));
   return migrated;
 };
@@ -138,7 +261,11 @@ export const createList = (store: Storage, name: string, now = Date.now()): Libr
   if (library.lists.some((list) => list.name.toLocaleLowerCase() === clean.toLocaleLowerCase())) {
     throw new Error('A list with that name already exists.');
   }
-  library.lists.push({ id: `list-${now}`, name: clean, createdAt: now });
+  library.lists.push({
+    id: unusedId(`list-${now}`, new Set(library.lists.map((list) => list.id))),
+    name: clean,
+    createdAt: now,
+  });
   saveLibrary(store, library);
   return library;
 };
@@ -156,8 +283,16 @@ export const updateLibraryEntry = (
   return library;
 };
 
-export const getNotes = (store: Storage): Record<string, string> =>
-  readJson<Record<string, string>>(store, NOTES_KEY, {});
+export const getNotes = (store: Storage): Record<string, string> => {
+  const value = readJson<unknown>(store, NOTES_KEY, {});
+  return record(value)
+    ? Object.fromEntries(
+        Object.entries(value).filter(
+          (entry): entry is [string, string] => typeof entry[1] === 'string',
+        ),
+      )
+    : {};
+};
 
 export const setNote = (store: Storage, key: string, note: string): void => {
   const notes = getNotes(store);
@@ -166,16 +301,10 @@ export const setNote = (store: Storage, key: string, note: string): void => {
   store.setItem(NOTES_KEY, JSON.stringify(notes));
 };
 
-export const getComparisonSets = (store: Storage): ComparisonSet[] =>
-  readJson<ComparisonSet[]>(store, COMPARISONS_KEY, []).filter(
-    (item) =>
-      typeof item.id === 'string' &&
-      typeof item.name === 'string' &&
-      Array.isArray(item.media) &&
-      item.media.every(
-        (ref) => Number.isInteger(ref.id) && (ref.mediaType === 'movie' || ref.mediaType === 'tv'),
-      ),
-  );
+export const getComparisonSets = (store: Storage): ComparisonSet[] => {
+  const value = readJson<unknown>(store, COMPARISONS_KEY, []);
+  return Array.isArray(value) ? value.filter(validComparison) : [];
+};
 
 export const saveComparisonSet = (
   store: Storage,
@@ -188,7 +317,12 @@ export const saveComparisonSet = (
   const sets = getComparisonSets(store).filter(
     (set) => set.name.toLocaleLowerCase() !== clean.toLocaleLowerCase(),
   );
-  sets.push({ id: `comparison-${now}`, name: clean, savedAt: now, media });
+  sets.push({
+    id: unusedId(`comparison-${now}`, new Set(sets.map((set) => set.id))),
+    name: clean,
+    savedAt: now,
+    media,
+  });
   store.setItem(COMPARISONS_KEY, JSON.stringify(sets));
   return sets;
 };
@@ -237,9 +371,7 @@ export interface MergePreview {
 }
 
 export const previewBackupMerge = (store: Storage, backup: ScreenCardBackup): MergePreview => {
-  if (backup.format !== 'screencard-backup' || backup.version !== 2) {
-    throw new Error('Unsupported ScreenCard backup.');
-  }
+  assertBackup(backup);
   const library = getLibrary(store);
   const entryKeys = new Set(library.entries.map((item) => `${item.mediaType}:${item.id}`));
   const listNames = new Set(library.lists.map((item) => item.name.toLocaleLowerCase()));
@@ -269,10 +401,13 @@ export const mergeBackup = (store: Storage, backup: ScreenCardBackup): MergePrev
   const preview = previewBackupMerge(store, backup);
   const current = getLibrary(store);
   const listMap = new Map(current.lists.map((list) => [list.name.toLocaleLowerCase(), list.id]));
+  const usedListIds = new Set(current.lists.map((list) => list.id));
   for (const list of backup.library.lists) {
     if (!listMap.has(list.name.toLocaleLowerCase())) {
-      current.lists.push(list);
-      listMap.set(list.name.toLocaleLowerCase(), list.id);
+      const id = unusedId(list.id, usedListIds);
+      usedListIds.add(id);
+      current.lists.push({ ...list, id });
+      listMap.set(list.name.toLocaleLowerCase(), id);
     }
   }
   const incomingListNames = new Map(
@@ -289,16 +424,50 @@ export const mergeBackup = (store: Storage, backup: ScreenCardBackup): MergePrev
     if (index >= 0) current.entries[index] = mapped;
     else current.entries.push(mapped);
   }
-  saveLibrary(store, current);
-  store.setItem(NOTES_KEY, JSON.stringify({ ...getNotes(store), ...backup.notes }));
   const incomingNames = new Set(backup.comparisonSets.map((set) => set.name.toLocaleLowerCase()));
-  store.setItem(
-    COMPARISONS_KEY,
-    JSON.stringify([
-      ...getComparisonSets(store).filter((set) => !incomingNames.has(set.name.toLocaleLowerCase())),
-      ...backup.comparisonSets,
-    ]),
+  const comparisons = getComparisonSets(store).filter(
+    (set) => !incomingNames.has(set.name.toLocaleLowerCase()),
   );
+  const usedComparisonIds = new Set(comparisons.map((set) => set.id));
+  for (const set of backup.comparisonSets) {
+    const id = unusedId(set.id, usedComparisonIds);
+    usedComparisonIds.add(id);
+    comparisons.push({ ...set, id });
+  }
+  const writes = [
+    [LIBRARY_KEY, JSON.stringify(current)],
+    [NOTES_KEY, JSON.stringify({ ...getNotes(store), ...backup.notes })],
+    [COMPARISONS_KEY, JSON.stringify(comparisons)],
+  ] as const;
+  const before = new Map<string, string | null>(writes.map(([key]) => [key, store.getItem(key)]));
+  const written: Array<readonly [string, string]> = [];
+  try {
+    for (const [key, value] of writes) {
+      store.setItem(key, value);
+      written.push([key, value]);
+    }
+  } catch {
+    let restored = true;
+    for (const [key, value] of written.reverse()) {
+      try {
+        if (store.getItem(key) !== value) {
+          restored = false;
+          continue;
+        }
+        const old = before.get(key);
+        if (old === null || old === undefined) store.removeItem(key);
+        else store.setItem(key, old);
+      } catch {
+        restored = false;
+      }
+    }
+    throw new Error(
+      restored
+        ? 'Backup save failed. Local data was restored; free browser storage and retry.'
+        : 'Backup save failed and some local data could not be restored. Keep your backup and inspect the library before retrying.',
+    );
+  }
+
   return preview;
 };
 
