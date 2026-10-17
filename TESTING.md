@@ -44,3 +44,11 @@ Validation: `npm run validate` and `npm audit`.
 ## Version 1.3.0
 
 The library unit tests cover all-term search, case/whitespace, tags and uncached typed IDs; visible-row selection/order, notes opt-in, CSV quoting and newlines, formula injection, empty exports and TMDB links. Before release, check the built app at desktop/mobile widths: add fictional demos to the library, filter by title and tag, combine state/list filters, export CSV, verify omitted and included notes, clear search and reload. Repeat both features against the deployed build. Real TMDB-token acceptance remains separate.
+
+## Version 1.3.1: local data and backup recovery
+
+Validate complete backup structure, enum values, note types, unique identities and list references before preview or any write. Remap imported ID collisions without moving existing entries between lists. Recovery readers ignore malformed persisted records while leaving the stored source untouched. Keep provider/token functions unchanged.
+
+Backup writes are staged in memory, with prior values recorded. On a handled write failure, restore only completed writes whose values are still unchanged. Report incomplete recovery without overwriting intervening changes. This is not a crash-safe browser storage transaction. Regression tests exercise malformed stored/imported data, list/comparison identity collisions and each write-failure position followed by retry.
+
+The owner's October 17, 2026 message reports both requested human tests complete, including the previously requested live TMDB token/connection test. Treat this as user-reported provider acceptance; automated API tests still use fixtures. No credential was requested, accessed or recorded.
