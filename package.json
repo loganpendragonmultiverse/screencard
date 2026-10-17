@@ -1,6 +1,6 @@
 {
   "name": "screencard",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "private": true,
   "type": "module",
   "description": "A local-first movie and TV research, comparison, and watchlist studio powered by your own TMDB token.",

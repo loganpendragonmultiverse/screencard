@@ -171,41 +171,56 @@ export const setCached = <T>(store: Storage, key: string, data: T, now = Date.no
 };
 
 export const getLibrary = (store: Storage): LibraryState => {
-  const stored = readJson<LibraryState | null>(store, LIBRARY_KEY, null);
-  if (stored?.version === 2 && Array.isArray(stored.lists) && Array.isArray(stored.entries)) {
-    const lists = stored.lists
+  let source: string | null;
+  try {
+    source = store.getItem(LIBRARY_KEY);
+  } catch {
+    return defaultLibrary();
+  }
+  let stored: LibraryState | null = null;
+  try {
+    stored = source === null ? null : (JSON.parse(source) as LibraryState);
+  } catch {
+    /* Preserve malformed source. */
+  }
+  if (stored?.version === 2) {
+    const lists = (Array.isArray(stored.lists) ? stored.lists : [])
       .filter(validList)
       .filter((list, index, all) => all.findIndex((other) => other.id === list.id) === index);
     if (!lists.some((list) => list.id === DEFAULT_LIST_ID)) {
       lists.unshift({ id: DEFAULT_LIST_ID, name: 'Watchlist', createdAt: 0 });
     }
     const listIds = new Set(lists.map((list) => list.id));
-    const entries = stored.entries.filter(validRef).map((entry) => ({
-      ...entry,
-      listIds: [...new Set(Array.isArray(entry.listIds) ? entry.listIds : [])].filter((id) =>
-        listIds.has(id),
-      ),
-      tags: [
-        ...new Set(
-          Array.isArray(entry.tags)
-            ? entry.tags
-                .filter((tag): tag is string => typeof tag === 'string')
-                .map((tag) => tag.trim())
-            : [],
+    const entries = (Array.isArray(stored.entries) ? stored.entries : [])
+      .filter(validRef)
+      .map((entry) => ({
+        ...entry,
+        listIds: [...new Set(Array.isArray(entry.listIds) ? entry.listIds : [])].filter((id) =>
+          listIds.has(id),
         ),
-      ].filter(Boolean),
-      status: statuses.includes(entry.status) ? entry.status : ('want-to-watch' as const),
-      priority: priorities.includes(entry.priority) ? entry.priority : ('normal' as const),
-      personalRating:
-        typeof entry.personalRating === 'number' &&
-        Number.isFinite(entry.personalRating) &&
-        entry.personalRating >= 0 &&
-        entry.personalRating <= 10
-          ? entry.personalRating
-          : null,
-    }));
+        tags: [
+          ...new Set(
+            Array.isArray(entry.tags)
+              ? entry.tags
+                  .filter((tag): tag is string => typeof tag === 'string')
+                  .map((tag) => tag.trim())
+              : [],
+          ),
+        ].filter(Boolean),
+        status: statuses.includes(entry.status) ? entry.status : ('want-to-watch' as const),
+        priority: priorities.includes(entry.priority) ? entry.priority : ('normal' as const),
+        personalRating:
+          typeof entry.personalRating === 'number' &&
+          Number.isFinite(entry.personalRating) &&
+          entry.personalRating >= 0 &&
+          entry.personalRating <= 10
+            ? entry.personalRating
+            : null,
+      }));
     return { version: 2, lists, entries };
   }
+  // Present v2 source, including malformed or unsupported data, is never replaced by a recovery read.
+  if (source !== null) return defaultLibrary();
   const migrated = defaultLibrary();
   const legacy = readJson<unknown>(store, LEGACY_WATCHLIST_KEY, []);
   migrated.entries = (Array.isArray(legacy) ? legacy : []).filter(validRef).map((item) => ({
@@ -216,7 +231,14 @@ export const getLibrary = (store: Storage): LibraryState => {
     personalRating: null,
     tags: [],
   }));
-  if (migrated.entries.length) store.setItem(LIBRARY_KEY, JSON.stringify(migrated));
+  if (migrated.entries.length) {
+    try {
+      // Migration is best effort and must not overwrite a v2 source created in the meantime.
+      if (store.getItem(LIBRARY_KEY) === null) store.setItem(LIBRARY_KEY, JSON.stringify(migrated));
+    } catch {
+      /* Keep the usable legacy view when storage is full or blocked. */
+    }
+  }
   return migrated;
 };
 
