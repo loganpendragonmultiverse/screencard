@@ -935,3 +935,14 @@ dialog::backdrop {
   cursor: pointer;
   font: inherit;
 }
+
+.export-bar > div,
+.toolbar-actions {
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+.library-toolbar select,
+.comparison-tools select {
+  max-width: 100%;
+}
