@@ -66,3 +66,7 @@ Validate complete backup structure, enum values, note types, unique identities a
 Backup writes are staged in memory, with prior values recorded. On a handled write failure, restore only completed writes whose values are still unchanged. Report incomplete recovery without overwriting intervening changes. This is not a crash-safe browser storage transaction. Regression tests exercise malformed stored/imported data, list/comparison identity collisions and each write-failure position followed by retry.
 
 The owner's October 17, 2026 message reports both requested human tests complete, including the previously requested live TMDB token/connection test. Treat this as user-reported provider acceptance; automated API tests still use fixtures. No credential was requested, accessed or recorded.
+
+### Optional cache failures
+
+Cache writes must not discard a successful provider response. Only `screencard:cache:` entries may be evicted for quota or the 100-entry cache bound. Security/permission failures skip caching; notes, library, comparison and token keys are never eviction candidates. Fixture tests cover successful search/details with quota failures, oldest-cache eviction, non-quota failure preservation and the cache bound. Provider request and token functions remain unchanged.

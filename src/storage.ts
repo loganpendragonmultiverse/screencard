@@ -132,17 +132,42 @@ export const getCached = <T>(store: Storage, key: string, now = Date.now()): T |
 };
 
 export const setCached = <T>(store: Storage, key: string, data: T, now = Date.now()): void => {
-  const record: CacheRecord<T> = { savedAt: now, expiresAt: now + MAX_CACHE_AGE, data };
-  store.setItem(cacheKey(key), JSON.stringify(record));
-  const keys = Array.from({ length: store.length }, (_, i) => store.key(i)).filter(
-    (k): k is string => Boolean(k?.startsWith(CACHE_PREFIX)),
-  );
-  keys.sort(
-    (a, b) =>
-      (readJson<CacheRecord<unknown> | null>(store, a, null)?.savedAt ?? 0) -
-      (readJson<CacheRecord<unknown> | null>(store, b, null)?.savedAt ?? 0),
-  );
-  for (const old of keys.slice(0, Math.max(0, keys.length - 100))) store.removeItem(old);
+  // A cache is optional: storage pressure must not discard a valid provider response.
+  try {
+    const target = cacheKey(key);
+    const value = JSON.stringify({ savedAt: now, expiresAt: now + MAX_CACHE_AGE, data });
+    const others = Array.from({ length: store.length }, (_, i) => store.key(i)).filter(
+      (item): item is string => Boolean(item?.startsWith(CACHE_PREFIX)) && item !== target,
+    );
+    others.sort(
+      (a, b) =>
+        (readJson<CacheRecord<unknown> | null>(store, a, null)?.savedAt ?? 0) -
+        (readJson<CacheRecord<unknown> | null>(store, b, null)?.savedAt ?? 0),
+    );
+    const write = (): boolean => {
+      try {
+        store.setItem(target, value);
+        return true;
+      } catch (error) {
+        if (
+          !record(error) ||
+          !['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'].includes(String(error.name))
+        )
+          throw error;
+        return false;
+      }
+    };
+    let saved = write();
+    while (!saved && others.length) {
+      store.removeItem(others.shift()!);
+      saved = write();
+    }
+    if (saved) {
+      for (const old of others.slice(0, Math.max(0, others.length - 99))) store.removeItem(old);
+    }
+  } catch {
+    // Never evict library, note or token keys, and never fail a successful fetch.
+  }
 };
 
 export const getLibrary = (store: Storage): LibraryState => {

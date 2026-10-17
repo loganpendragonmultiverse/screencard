@@ -1,5 +1,11 @@
 # ScreenCard
 
+> ⭐ **Gold Star Project — v1.3.1**
+> I consider this project complete. Fixes, maintenance and good new ideas are still welcome.
+> [About Gold Stars](https://www.loganpendragonforge.com/open-source/?gold=1)
+>
+> Research movie and TV titles with your own TMDB token, compare cards, maintain a local viewing library and private notes, and export or merge your research.
+
 ScreenCard is a local-first movie and TV research desk powered by your own TMDB API Read Access
 Token. Search for titles, organize a device-local viewing library, compare up to four complete research cards,
 add private notes, and export the result as Markdown or JSON.
@@ -103,7 +109,7 @@ notes, so review them before sharing.
 
 ## Current release
 
-Version 1.3.1 repairs local-data recovery and validates backups before changing local state. Invalid backup records are rejected, colliding list identities are remapped, and handled storage-write failures restore completed writes before retry. These are handled failures, not a guarantee against browser/process termination during a write.
+Version 1.3.1 repairs local-data recovery and validates backups before changing local state. Invalid backup records are rejected, colliding list identities are remapped, and handled storage-write failures restore completed writes before retry. Optional cache-write failures no longer discard successful provider responses; cache eviction never removes library, notes or token records. These are handled failures, not a guarantee against browser/process termination during a write.
 
 Version 1.3.0 added local library text search and CSV export of the current filtered, sorted view.
 Search terms match titles, IDs and tags together; private notes are not searched. CSV includes
