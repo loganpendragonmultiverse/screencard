@@ -218,6 +218,16 @@ const orderedComparison = (): MediaDetails[] =>
 
 const compareView = (): string => `
   <section class="page-intro"><p>Side-by-side research</p><h1>Comparison desk</h1><span>Keep the differences visible. Notes and selections remain on this device.</span></section>
+  <div class="export-bar comparison-tools"><div><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
+    localStorage,
+  )
+    .map(
+      (set) =>
+        `<option value="${escapeHtml(set.id)}" ${set.id === selectedComparisonId ? 'selected' : ''}>${escapeHtml(set.name)}</option>`,
+    )
+    .join(
+      '',
+    )}</select><button data-action="rename-comparison">Rename set</button><button data-action="delete-comparison">Delete set</button></div></div>
   ${
     compare.length
       ? `<div class="column-tools"><label>Comparison preset<select id="column-preset"><option value="custom">Custom columns</option>${Object.keys(
@@ -229,16 +239,7 @@ const compareView = (): string => `
           )
           .join(
             '',
-          )}</select></label><fieldset><legend>Visible comparison fields</legend>${columns.map((column) => `<label><input type="checkbox" data-column-choice="${column}" ${selectedColumns.includes(column) ? 'checked' : ''} /> ${column}</label>`).join('')}</fieldset><p>These controls change the comparison view. Research exports contain full card details; private notes are optional.</p></div><div class="export-bar comparison-tools"><label>Sort<select id="compare-sort"><option value="added">Added order</option><option value="rating" ${compareSort === 'rating' ? 'selected' : ''}>Rating</option><option value="year" ${compareSort === 'year' ? 'selected' : ''}>Year</option><option value="title" ${compareSort === 'title' ? 'selected' : ''}>Title</option></select></label><label class="include-notes"><input id="include-notes" type="checkbox" ${includePrivateNotes ? 'checked' : ''} /> Include private notes</label><div><button data-action="save-comparison">Save set</button><select id="saved-comparison"><option value="">Load saved set…</option>${getComparisonSets(
-          localStorage,
-        )
-          .map(
-            (set) =>
-              `<option value="${escapeHtml(set.id)}" ${set.id === selectedComparisonId ? 'selected' : ''}>${escapeHtml(set.name)}</option>`,
-          )
-          .join(
-            '',
-          )}</select><button data-action="rename-comparison">Rename set</button><button data-action="delete-comparison">Delete set</button><button data-action="export-md">Export Markdown</button><button data-action="export-json">Export JSON</button></div></div><section class="comparison-grid" style="--columns:${compare.length}">${orderedComparison().map(comparisonCard).join('')}</section>`
+          )}</select></label><fieldset><legend>Visible comparison fields</legend>${columns.map((column) => `<label><input type="checkbox" data-column-choice="${column}" ${selectedColumns.includes(column) ? 'checked' : ''} /> ${column}</label>`).join('')}</fieldset><p>These controls change the comparison view. Research exports contain full card details; private notes are optional.</p></div><div class="export-bar comparison-tools"><label>Sort<select id="compare-sort"><option value="added">Added order</option><option value="rating" ${compareSort === 'rating' ? 'selected' : ''}>Rating</option><option value="year" ${compareSort === 'year' ? 'selected' : ''}>Year</option><option value="title" ${compareSort === 'title' ? 'selected' : ''}>Title</option></select></label><label class="include-notes"><input id="include-notes" type="checkbox" ${includePrivateNotes ? 'checked' : ''} /> Include private notes</label><div><button data-action="save-comparison">Save set</button><button data-action="export-md">Export Markdown</button><button data-action="export-json">Export JSON</button></div></div><section class="comparison-grid" style="--columns:${compare.length}">${orderedComparison().map(comparisonCard).join('')}</section>`
       : emptyState(
           'No cards selected yet.',
           'Return to Discover and select up to four movies or series.',
