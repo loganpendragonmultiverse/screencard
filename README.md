@@ -89,6 +89,8 @@ notes, so review them before sharing.
 
 ## Limitations
 
+- Remote search shows the first page of TMDB results; it is not an exhaustive title index.
+
 - ScreenCard needs a user-supplied TMDB developer token and an internet connection for uncached
   title data and images.
 - A browser application cannot hide a token from someone who controls that browser or device.
