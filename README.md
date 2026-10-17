@@ -1,6 +1,6 @@
 # ScreenCard
 
-> ⭐ **Gold Star Project — v1.4.0**
+> ⭐ **Gold Star Project — v1.4.1**
 > I consider this project complete. Fixes, maintenance and good new ideas are still welcome.
 > [About Gold Stars](https://www.loganpendragonforge.com/open-source/?gold=1)
 >
@@ -108,6 +108,8 @@ notes, so review them before sharing.
 - TMDB controls its API availability, rate limits, data, and images.
 
 ## Current release
+
+Version 1.4.1 gives the saved comparison selector a visible, programmatically associated label, including on an empty comparison desk.
 
 Version 1.4.0 keeps saved titles editable when TMDB refreshes fail, using cached details or clearly labeled local references. Rename or delete custom lists, saved comparison sets and saved filter views. Deleting a custom list retains titles and notes; titles with no other list move to Watchlist. The default Watchlist cannot be renamed or deleted. Saved views referencing a deleted list reopen across all lists.
 

@@ -78,3 +78,7 @@ Normalize v2 lists and entries independently and never rewrite present malformed
 ## Version 1.4.0: provider fallback and saved-item management
 
 Exercise per-reference refresh failures with a retained synthetic token: stale cached and uncached library titles must remain visible/editable, warning labels must identify fallback, and successful siblings must still load. Search errors remain explicit. Test rename/delete/cancel for custom lists, comparison sets and saved views. List deletion retains entries, notes, other memberships and metadata; entries with no remaining membership move to Watchlist. The default Watchlist is protected. Saved views whose list was deleted reopen across all lists. Provider/token request functions remain unchanged; automated provider acceptance uses fixtures.
+
+## Version 1.4.1: saved comparison label
+
+The visible Saved comparison set label must be associated with its selector. Check the programmatic combobox name, save a set, reload to an empty desk, then load, rename and delete it in the built app across supported browser engines. Provider and token behavior is unchanged.
