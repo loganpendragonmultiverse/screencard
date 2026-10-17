@@ -225,4 +225,89 @@ describe('local data and backup failure recovery', () => {
     );
     expect(target.getItem('screencard:library:v2')).not.toBeNull();
   });
+  it('recovers valid v2 entries independently of malformed lists without replacing source bytes', () => {
+    const store = memoryStorage();
+    const legacy = '[{"id":1,"mediaType":"tv","addedAt":1}]';
+    const source = JSON.stringify({
+      version: 2,
+      lists: {},
+      entries: [
+        {
+          id: 99,
+          mediaType: 'movie',
+          addedAt: 1,
+          listIds: ['default'],
+          status: 'watched',
+          priority: 'high',
+          personalRating: 9,
+          tags: ['keep'],
+        },
+      ],
+    });
+    store.setItem('screencard:library:v2', source);
+    store.setItem('screencard:watchlist:v1', legacy);
+    expect(getLibrary(store).entries).toEqual([
+      {
+        id: 99,
+        mediaType: 'movie',
+        addedAt: 1,
+        listIds: ['default'],
+        status: 'watched',
+        priority: 'high',
+        personalRating: 9,
+        tags: ['keep'],
+      },
+    ]);
+    expect(store.getItem('screencard:library:v2')).toBe(source);
+    expect(store.getItem('screencard:watchlist:v1')).toBe(legacy);
+  });
+
+  for (const failure of ['QuotaExceededError', 'SecurityError']) {
+    it(`keeps valid legacy data usable when migration writes fail with ${failure}`, () => {
+      const base = memoryStorage();
+      const legacy = '[{"id":1,"mediaType":"tv","addedAt":1}]';
+      base.setItem('screencard:watchlist:v1', legacy);
+      const blocked: Storage = {
+        get length() {
+          return base.length;
+        },
+        key: (i) => base.key(i),
+        getItem: (key) => base.getItem(key),
+        removeItem: (key) => base.removeItem(key),
+        clear: () => base.clear(),
+        setItem: () => {
+          throw new DOMException('Synthetic migration write failure', failure);
+        },
+      };
+      expect(() => getLibrary(blocked)).not.toThrow();
+      expect(getLibrary(blocked).entries[0]).toMatchObject({ id: 1, mediaType: 'tv' });
+      expect(base.getItem('screencard:library:v2')).toBeNull();
+      expect(base.getItem('screencard:watchlist:v1')).toBe(legacy);
+    });
+  }
+
+  it('still saves the first valid legacy migration when v2 is absent and storage is writable', () => {
+    const store = memoryStorage();
+    const legacy = '[{"id":1,"mediaType":"tv","addedAt":1}]';
+    store.setItem('screencard:watchlist:v1', legacy);
+    const view = getLibrary(store);
+    expect(view.entries[0]).toMatchObject({ id: 1, mediaType: 'tv' });
+    expect(JSON.parse(store.getItem('screencard:library:v2')!)).toEqual(view);
+    expect(store.getItem('screencard:watchlist:v1')).toBe(legacy);
+  });
+
+  it('never replaces present invalid or unsupported v2 source with retained legacy data', () => {
+    for (const source of [
+      '{broken',
+      'null',
+      '',
+      JSON.stringify({ version: 999, lists: [], entries: [] }),
+    ]) {
+      const store = memoryStorage();
+      store.setItem('screencard:library:v2', source);
+      store.setItem('screencard:watchlist:v1', '[{"id":1,"mediaType":"tv","addedAt":1}]');
+      expect(() => getLibrary(store)).not.toThrow();
+      expect(store.getItem('screencard:library:v2')).toBe(source);
+    }
+  });
 });

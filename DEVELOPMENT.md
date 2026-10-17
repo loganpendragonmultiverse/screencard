@@ -70,3 +70,7 @@ The owner's October 17, 2026 message reports both requested human tests complete
 ### Optional cache failures
 
 Cache writes must not discard a successful provider response. Only `screencard:cache:` entries may be evicted for quota or the 100-entry cache bound. Security/permission failures skip caching; notes, library, comparison and token keys are never eviction candidates. Fixture tests cover successful search/details with quota failures, oldest-cache eviction, non-quota failure preservation and the cache bound. Provider request and token functions remain unchanged.
+
+## Version 1.3.2: legacy migration and malformed roots
+
+Normalize v2 lists and entries independently and never rewrite present malformed/unsupported v2 source during recovery reads. Only migrate a valid legacy watchlist when the v2 key is absent, recheck absence before writing, preserve the legacy source, and treat failed migration writes as best effort so the usable legacy view remains available. Tests cover malformed lists with a valid v2 entry plus retained legacy data, absent-v2 writable migration, quota/blocked-write migration, and preservation of malformed/unsupported v2 bytes. Provider and token functions remain unchanged.

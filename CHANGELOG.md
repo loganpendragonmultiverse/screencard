@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2 - 2026-10-17
+
+- Normalize existing v2 lists and entries independently, retaining usable entries when a container is malformed without rewriting stored source bytes during reads.
+- Migrate legacy watchlists only when v2 source is absent; preserve normal writable migration and keep the legacy view usable when migration writes fail because storage is full or blocked.
+- Preserve retained legacy data and any v2 source that appears before the migration write.
+
 ## 1.3.1 - 2026-10-17
 
 - Keep successful TMDB responses usable when optional cache writes fail; evict only this app's own oldest cache entries when quota or the 100-entry bound requires it.

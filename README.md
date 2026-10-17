@@ -1,6 +1,6 @@
 # ScreenCard
 
-> ⭐ **Gold Star Project — v1.3.1**
+> ⭐ **Gold Star Project — v1.3.2**
 > I consider this project complete. Fixes, maintenance and good new ideas are still welcome.
 > [About Gold Stars](https://www.loganpendragonforge.com/open-source/?gold=1)
 >
@@ -109,7 +109,7 @@ notes, so review them before sharing.
 
 ## Current release
 
-Version 1.3.1 repairs local-data recovery and validates backups before changing local state. Invalid backup records are rejected, colliding list identities are remapped, and handled storage-write failures restore completed writes before retry. Optional cache-write failures no longer discard successful provider responses; cache eviction never removes library, notes or token records. These are handled failures, not a guarantee against browser/process termination during a write.
+Version 1.3.2 repairs local-data recovery and validates backups before changing local state. Invalid backup records are rejected, colliding list identities are remapped, and handled storage-write failures restore completed writes before retry. Optional cache-write failures no longer discard successful provider responses; cache eviction never removes library, notes or token records. These are handled failures, not a guarantee against browser/process termination during a write.
 
 Version 1.3.0 added local library text search and CSV export of the current filtered, sorted view.
 Search terms match titles, IDs and tags together; private notes are not searched. CSV includes
@@ -150,6 +150,8 @@ Opening ScreenCard or its empty library no longer forces a token dialog. Search 
 
 Validation: `npm run validate` and `npm audit`.
 
+Recovery reads preserve existing v2 source bytes and normalize usable lists and entries independently. A valid legacy watchlist migrates automatically only when v2 source is absent. If that migration write is blocked, the legacy library remains usable in memory and the original legacy data stays untouched.
+
 ## Acceptance evidence
 
-On October 17, 2026, the owner reported completion of the requested human tests, including the real TMDB connection test using their own token entered securely in the app. This is user-reported acceptance, not an independently observed automated provider test. No token was requested or received through chat, source files or test output. The 1.3.1 patch changes local storage and backup handling; the TMDB request and token functions remain unchanged.
+On October 17, 2026, the owner reported completion of the requested human tests, including the real TMDB connection test using their own token entered securely in the app. This is user-reported acceptance, not an independently observed automated provider test. No token was requested or received through chat, source files or test output. The 1.3.2 patch changes local storage and backup handling; the TMDB request and token functions remain unchanged.
