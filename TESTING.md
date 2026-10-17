@@ -68,3 +68,12 @@ Exercise per-reference refresh failures with a retained synthetic token: stale c
 ## Version 1.4.1: saved comparison label
 
 The visible Saved comparison set label must be associated with its selector. Check the programmatic combobox name, save a set, reload to an empty desk, then load, rename and delete it in the built app across supported browser engines. Provider and token behavior is unchanged.
+
+The optional repository browser regression uses an already available Playwright installation and its Chromium, Firefox and WebKit binaries:
+
+```shell
+npm run build
+node scripts/browser-acceptance.mjs
+```
+
+No browser dependency is added to this project. If Playwright is installed elsewhere, set `PLAYWRIGHT_MODULE` to its ESM entry point. `SCREENCARD_DIST` selects an extracted release build instead of `dist`; `SCREENCARD_BROWSER_REPORT` writes the result JSON to an existing destination directory. The script serves the build on loopback, uses fictional offline cards and blocks remote requests.
