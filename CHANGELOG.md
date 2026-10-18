@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Update development dependencies, pairing Vitest 5 with its matching V8 coverage provider.
+- Retire end-of-life Node.js 20 developer support. Use Node.js 24 LTS, Node.js 22.13 or later in the 22 line, or Node.js 26 and later; the required Node.js 24 validation remains, with separate compatibility checks.
+- Update both CodeQL steps to the reviewed v4.39.0 commit. Browser source and behavior are unchanged.
+
 ## 1.4.1 - 2026-10-17
 
 - Label the saved comparison selector so assistive technology identifies its purpose on both empty and populated desks.
