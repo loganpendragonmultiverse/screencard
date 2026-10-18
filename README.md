@@ -51,7 +51,7 @@ ScreenCard sends it only as a Bearer token to `https://api.themoviedb.org`.
 
 ## Run locally
 
-Requirements: Node.js 20.19 or later and npm.
+Requirements: Node.js 24 LTS, Node.js 22.13 or later in the 22 line, or Node.js 26 and later, plus npm.
 
 ```shell
 npm ci
@@ -159,3 +159,7 @@ Recovery reads preserve existing v2 source bytes and normalize usable lists and 
 ## Acceptance evidence
 
 On October 17, 2026, the owner reported completion of the requested human tests, including the real TMDB connection test using their own token entered securely in the app. This is user-reported acceptance, not an independently observed automated provider test. No token was requested or received through chat, source files or test output. The 1.3.2 patch changes local storage and backup handling; the TMDB request and token functions remain unchanged.
+
+## Developer runtime support
+
+The paired Vitest 5 and coverage upgrade ends developer-tool support for Node.js 20, which is end-of-life. Use Node.js 24 LTS, Node.js 22.13 or later in the 22 line, or Node.js 26 and later. Odd-numbered Node.js 23 and 25 are unsupported. This build-tool requirement does not change browser support or require Node.js to use a downloaded ScreenCard build.

@@ -1,6 +1,6 @@
 # Testing
 
-Run the complete gate with Node.js 20.19 or later:
+Run the complete gate with Node.js 24 LTS (recommended), Node.js 22.13 or later in the 22 line, or Node.js 26 and later:
 
 ```shell
 npm ci
@@ -77,3 +77,7 @@ node scripts/browser-acceptance.mjs
 ```
 
 No browser dependency is added to this project. If Playwright is installed elsewhere, set `PLAYWRIGHT_MODULE` to its ESM entry point. `SCREENCARD_DIST` selects an extracted release build instead of `dist`; `SCREENCARD_BROWSER_REPORT` writes the result JSON to an existing destination directory. The script serves the build on loopback, uses fictional offline cards and blocks remote requests.
+
+## Vitest 5 developer-tool transition
+
+Vitest and its V8 coverage provider must use matching versions. The paired upgrade retires end-of-life Node.js 20 support; Node.js 23 and 25 are also unsupported. The required `validate` job remains on Node.js 24. Separate compatibility checks run the same unchanged validation and audit gates on Node.js 22.13.0 and 26. Keep the existing coverage files and thresholds; do not bypass peer resolution or audit findings.

@@ -82,3 +82,7 @@ Exercise per-reference refresh failures with a retained synthetic token: stale c
 ## Version 1.4.1: saved comparison label
 
 The visible Saved comparison set label must be associated with its selector. Check the programmatic combobox name, save a set, reload to an empty desk, then load, rename and delete it in the built app across supported browser engines. Provider and token behavior is unchanged.
+
+## Developer runtime transition for Vitest 5
+
+The paired Vitest 5 and V8 coverage update retires end-of-life Node.js 20 from the developer-tool contract. The complete dependency set supports `^22.13.0 || ^24.0.0 || >=26.0.0`; ESLint sets the Node.js 22 floor, while Vitest excludes Node.js 23 and 25. Node.js 24 LTS remains the recommended build runtime and the required `validate` job. Separate compatibility jobs retain the same format, lint, types, 56-test coverage, build and audit gates. No browser-runtime, provider, token or storage behavior changes.
