@@ -81,3 +81,7 @@ No browser dependency is added to this project. If Playwright is installed elsew
 ## Vitest 5 developer-tool transition
 
 Vitest and its V8 coverage provider must use matching versions. The paired upgrade retires end-of-life Node.js 20 support; Node.js 23 and 25 are also unsupported. The required `validate` job remains on Node.js 24. Separate compatibility checks run the same unchanged validation and audit gates on Node.js 22.13.0 and 26. Keep the existing coverage files and thresholds; do not bypass peer resolution or audit findings.
+
+## Research-note save recovery (1.4.2)
+
+Run `node scripts/note-save-acceptance.mjs` against the built site with the existing optional Playwright runtime (`PLAYWRIGHT_MODULE`, `SCREENCARD_DIST` and `SCREENCARD_NOTE_REPORT` may select it and the report path). No dependency is downloaded by that script. In Chromium, Firefox and WebKit, fill actual isolated browser localStorage to quota, edit a short note, blur and navigate away/back. Verify a visible unsaved failure, the exact draft survives and the prior persisted note is unchanged. Free only synthetic quota filler, retry, reload and verify the edit is now persisted. Cover independent notes, deletion drafts and blocked storage in unit tests. Native real-provider acceptance remains user-reported; offline fixtures do not independently verify TMDB.
