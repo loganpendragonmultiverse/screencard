@@ -1,4 +1,5 @@
 import './styles.css';
+import { NoteDrafts } from './note-drafts';
 import { matchesLibraryQuery, exportLibraryCsv } from './library';
 import { version } from '../package.json';
 import {
@@ -27,7 +28,6 @@ import {
   mergeBackup,
   previewBackupMerge,
   saveComparisonSet,
-  setNote,
   setToken,
   toggleWatchlist,
   updateLibraryEntry,
@@ -81,6 +81,16 @@ let namePurpose:
   'list' | 'comparison' | 'filter' | 'rename-list' | 'rename-comparison' | 'rename-filter' = 'list';
 let nameTarget = '';
 const provenance = new Map<string, string>();
+const noteDrafts = new NoteDrafts(localStorage);
+const noteDraftMessage = (key: string): string =>
+  noteDrafts.state(key) === 'failed'
+    ? 'Could not save this note. Your unsaved draft remains in this tab. Free storage and retry, or copy it before closing.'
+    : noteDrafts.state(key) === 'unsaved'
+      ? 'Unsaved note draft. Save it before closing this tab.'
+      : '';
+window.addEventListener('beforeunload', (event) => {
+  if (noteDrafts.size) event.preventDefault();
+});
 
 const escapeHtml = (value: unknown): string =>
   String(value ?? '')
@@ -120,7 +130,7 @@ const shell = (): string => `
     </nav>
     <button class="settings-button" data-action="settings" aria-label="TMDB token settings">Token</button>
   </header>
-  <main>${content()}</main>
+  <main>${noteDrafts.size ? '<p role="status">Unsaved research notes remain in this tab. Return to Compare to retry saving; copy them before closing. Exports and backups include saved notes only.</p>' : ''}${content()}</main>
   <footer class="site-footer">
     <span>ScreenCard v${version} · Local-first. No accounts. No tracking.</span>
     <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer"><img src="./assets/tmdb-logo.svg" alt="TMDB" /></a>
@@ -188,7 +198,9 @@ const comparisonCard = (media: MediaDetails): string => {
         .join(', ') || '—',
     )}</dd></div></dl>
     <p class="overview">${escapeHtml(media.overview || 'No synopsis is available.')}</p>
-    <label class="note-field">Research note<textarea data-note="${mediaKey(media)}" placeholder="Why this title, who is it for, or what do you want to remember?">${escapeHtml(notes[mediaKey(media)] ?? '')}</textarea></label>
+    <label class="note-field">Research note<textarea data-note="${mediaKey(media)}" aria-describedby="note-save-${mediaKey(media)}" placeholder="Why this title, who is it for, or what do you want to remember?">${escapeHtml(noteDrafts.text(mediaKey(media), notes[mediaKey(media)] ?? ''))}</textarea></label>
+    <p id="note-save-${mediaKey(media)}" data-note-status="${mediaKey(media)}" role="status">${escapeHtml(noteDraftMessage(mediaKey(media)))}</p>
+    <button type="button" data-action="retry-note" data-key="${mediaKey(media)}" ${noteDrafts.state(mediaKey(media)) === 'saved' ? 'hidden' : ''}>Retry saving note</button>
     <div class="card-links">${trailer ? `<a href="${trailer}" target="_blank" rel="noreferrer">Watch trailer ↗</a>` : ''}${media.id > 0 ? `<a href="https://www.themoviedb.org/${media.media_type}/${media.id}" target="_blank" rel="noreferrer">View on TMDB ↗</a>` : 'Fictional offline demo'}</div>
   </article>`;
 };
@@ -699,12 +711,31 @@ const bindEvents = (): void => {
       render();
     }),
   );
-  document.querySelectorAll<HTMLTextAreaElement>('[data-note]').forEach((textarea) =>
+  const saveNoteDraft = (key: string): void => {
+    const saved = noteDrafts.save(key);
+    setStatus(saved ? 'Research note saved locally.' : noteDraftMessage(key));
+  };
+  document.querySelectorAll<HTMLTextAreaElement>('[data-note]').forEach((textarea) => {
+    textarea.addEventListener('input', () => {
+      const key = textarea.dataset.note ?? '';
+      noteDrafts.update(key, textarea.value);
+      const card = textarea.closest('.comparison-card');
+      const message = card?.querySelector<HTMLElement>('[data-note-status]');
+      const retry = card?.querySelector<HTMLButtonElement>('[data-action="retry-note"]');
+      if (message) message.textContent = noteDraftMessage(key);
+      if (retry) retry.hidden = false;
+    });
     textarea.addEventListener('change', () => {
-      setNote(localStorage, textarea.dataset.note ?? '', textarea.value);
-      setStatus('Research note saved locally.');
-    }),
-  );
+      const key = textarea.dataset.note ?? '';
+      noteDrafts.update(key, textarea.value);
+      saveNoteDraft(key);
+    });
+  });
+  document
+    .querySelectorAll<HTMLElement>('[data-action="retry-note"]')
+    .forEach((button) =>
+      button.addEventListener('click', () => saveNoteDraft(button.dataset.key ?? '')),
+    );
   document.querySelector('#list-filter')?.addEventListener('change', (event) => {
     activeList = (event.target as HTMLSelectElement).value;
     render();

@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.4.2 - 2026-10-19
+
+- Report research-note persistence failures instead of silently discarding edits on internal navigation.
+- Keep unsaved drafts in the open tab, distinguish them from saved notes and provide an explicit retry action. Preserve the previously saved note on failure.
+- Warn about unsaved drafts before leaving where supported; document that exports and backups contain persisted notes, and unsaved memory is not durable through reload or process termination.
 
 - Update development dependencies, pairing Vitest 5 with its matching V8 coverage provider.
 - Retire end-of-life Node.js 20 developer support. Use Node.js 24 LTS, Node.js 22.13 or later in the 22 line, or Node.js 26 and later; the required Node.js 24 validation remains, with separate compatibility checks.

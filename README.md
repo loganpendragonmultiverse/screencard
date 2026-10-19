@@ -1,6 +1,6 @@
 # ScreenCard
 
-> ⭐ **Gold Star Project — v1.4.1**
+> ⭐ **Gold Star Project — v1.4.2**
 > I consider this project complete. Fixes, maintenance and good new ideas are still welcome.
 > [About Gold Stars](https://www.loganpendragonforge.com/open-source/?gold=1)
 >
@@ -108,6 +108,8 @@ notes, so review them before sharing.
 - TMDB controls its API availability, rate limits, data, and images.
 
 ## Current release
+
+Version 1.4.2 reports research-note save failures and keeps unsaved drafts across internal navigation, sorting and other rerenders in the open tab. Use **Retry saving note** after freeing storage. The last saved note stays unchanged until a write succeeds. Unsaved drafts are not included in research exports or backups; copy them before closing or reloading. A browser may warn before leaving, but tab/process termination can still lose an unsaved draft. This repair does not add synchronization or change token storage.
 
 Version 1.4.1 gives the saved comparison selector a visible, programmatically associated label, including on an empty comparison desk.
 
