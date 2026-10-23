@@ -1,6 +1,6 @@
 {
   "name": "screencard",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "description": "A local-first movie and TV research, comparison, and watchlist studio powered by your own TMDB token.",
@@ -19,7 +19,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/node": "26.4.1",
-    "@vitest/coverage-v8": "5.0.0",
+    "@vitest/coverage-v8": "5.0.5",
     "eslint": "10.8.0",
     "eslint-config-prettier": "10.1.8",
     "globals": "17.12.0",
@@ -27,7 +27,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.69.0",
     "vite": "8.3.5",
-    "vitest": "5.0.0"
+    "vitest": "5.0.5"
   },
   "engines": {
     "node": "^22.13.0 || ^24.0.0 || >=26.0.0"

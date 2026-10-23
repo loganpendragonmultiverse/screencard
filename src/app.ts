@@ -40,7 +40,7 @@ import {
   directorsOf,
   getMediaDetails,
   imageUrl,
-  searchMedia,
+  searchMediaPage,
   titleOf,
   trailerOf,
   yearOf,
@@ -62,6 +62,12 @@ if (!app) throw new Error('ScreenCard could not start.');
 let view: View = 'search';
 let token = getToken(sessionStorage, localStorage);
 let results: SearchResult[] = [];
+let searchInput = '';
+let searchedQuery = '';
+let searchPage = 1;
+let searchTotalPages = 1;
+let searchBusy = false;
+let searchGeneration = 0;
 let compare: MediaDetails[] = [];
 let watchlistDetails: MediaDetails[] = [];
 let busy = false;
@@ -156,7 +162,7 @@ const searchView = (): string => `
     </div>
     <form id="search-form" class="search-box">
       <label for="search-input">Search movies and TV</label>
-      <div><input id="search-input" name="query" placeholder="Try Arrival, Severance, or The Bear" autocomplete="off" required /><button ${busy ? 'disabled' : ''}>${busy ? 'Searching…' : 'Search'}</button></div>
+      <div><input id="search-input" name="query" placeholder="Try Arrival, Severance, or The Bear" autocomplete="off" value="${escapeHtml(searchInput)}" required /><button ${searchBusy ? 'disabled' : ''}>${searchBusy ? 'Searching…' : 'Search'}</button></div>
       <button type="button" data-action="demo">Explore fictional offline demo</button>
       <small>Results and images come directly from TMDB using your own token.</small>
     </form>
@@ -164,6 +170,7 @@ const searchView = (): string => `
   <section class="results-section">
     <div class="section-heading"><div><p>Search result cards</p><h2>${results.length ? `${results.length} titles` : 'Start with a title'}</h2></div><span>Select up to four cards to compare.</span></div>
     ${results.length ? `<div class="result-grid">${results.map(resultCard).join('')}</div>` : emptyState('Your research cards will appear here.', 'Each result includes a synopsis, year, type, and TMDB community rating.')}
+    ${searchedQuery ? `<nav class="toolbar-actions" aria-label="Search result pages"><button data-action="search-previous" ${searchBusy || searchPage <= 1 ? 'disabled' : ''}>Previous page</button><span role="status">Page ${searchPage} of ${searchTotalPages} for “${escapeHtml(searchedQuery)}” · movie and TV titles only</span><button data-action="search-next" ${searchBusy || searchPage >= searchTotalPages ? 'disabled' : ''}>Next page</button></nav>` : ''}
   </section>`;
 
 const resultCard = (media: SearchResult): string => {
@@ -403,21 +410,33 @@ const loadDetails = async (ref: MediaRef, allowLocal = false): Promise<MediaDeta
   return media;
 };
 
-const runSearch = async (query: string): Promise<void> => {
+const runSearch = async (query: string, page = 1): Promise<void> => {
+  if (!query) return;
   if (!token) {
     document.querySelector<HTMLDialogElement>('#token-dialog')?.showModal();
     return;
   }
-  busy = true;
+  const generation = ++searchGeneration;
+  searchBusy = true;
   render();
   try {
-    results = await searchMedia(query, token, localStorage);
-    status = results.length ? '' : 'No movie or TV results matched that search.';
+    const response = await searchMediaPage(query, token, localStorage, page);
+    if (generation !== searchGeneration) return;
+    results = response.results;
+    searchedQuery = query;
+    searchPage = response.page;
+    searchTotalPages = response.totalPages;
+    status = results.length
+      ? ''
+      : 'No movie or TV titles on this page. Other pages may contain titles.';
   } catch (error) {
+    if (generation !== searchGeneration) return;
     status = error instanceof Error ? error.message : 'Search failed.';
   } finally {
-    busy = false;
-    render();
+    if (generation === searchGeneration) {
+      searchBusy = false;
+      render();
+    }
   }
 };
 
@@ -587,6 +606,10 @@ const bindEvents = (): void => {
     );
   });
   document.querySelector('[data-action="demo"]')?.addEventListener('click', () => {
+    searchGeneration++;
+    searchBusy = false;
+    searchedQuery = '';
+    searchPage = searchTotalPages = 1;
     results = structuredClone(demoCards);
     status = 'Fictional offline examples loaded. No TMDB request was made.';
     render();
@@ -684,6 +707,15 @@ const bindEvents = (): void => {
     .forEach((button) =>
       button.addEventListener('click', () => changeView(button.dataset.view as View)),
     );
+  document.querySelector<HTMLInputElement>('#search-input')?.addEventListener('input', (event) => {
+    searchInput = (event.target as HTMLInputElement).value;
+  });
+  document.querySelector('[data-action="search-previous"]')?.addEventListener('click', () => {
+    if (!searchBusy && searchPage > 1) void runSearch(searchedQuery, searchPage - 1);
+  });
+  document.querySelector('[data-action="search-next"]')?.addEventListener('click', () => {
+    if (!searchBusy && searchPage < searchTotalPages) void runSearch(searchedQuery, searchPage + 1);
+  });
   document.querySelector('#search-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget as HTMLFormElement);

@@ -165,3 +165,9 @@ On October 17, 2026, the owner reported completion of the requested human tests,
 ## Developer runtime support
 
 The paired Vitest 5 and coverage upgrade ends developer-tool support for Node.js 20, which is end-of-life. Use Node.js 24 LTS, Node.js 22.13 or later in the 22 line, or Node.js 26 and later. Odd-numbered Node.js 23 and 25 are unsupported. This build-tool requirement does not change browser support or require Node.js to use a downloaded ScreenCard build.
+
+## Search pagination (1.5.0)
+
+Movie/TV search now includes Previous and Next page controls and the successful query's page number. A new search starts at page 1. The interface retains one page at a time and caps navigation at 500 pages. TMDB multi-search totals include people, so a page can contain no movie/TV titles while later pages remain available. Each query/page has a separate key in the existing bounded cache. Missing pagination fields in older cached responses safely expose only page 1.
+
+Failed requests retain the previous cards and page label for retry. Superseded requests cannot replace a newer search or the fictional offline demo. Search input survives rerenders. No accounts, provider credentials, permissions or export fields are added.
