@@ -4,9 +4,14 @@ import type { MediaDetails, MediaType, SearchResult } from './types';
 const API_ROOT = 'https://api.themoviedb.org/3';
 export const IMAGE_ROOT = 'https://image.tmdb.org/t/p';
 
-const request = async <T>(path: string, token: string, store: Storage): Promise<T> => {
+const request = async <T>(
+  path: string,
+  token: string,
+  store: Storage,
+  valid?: (data: T) => boolean,
+): Promise<T> => {
   const cached = getCached<T>(store, path);
-  if (cached) return cached;
+  if (cached && (!valid || valid(cached))) return cached;
   const response = await fetch(`${API_ROOT}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
   });
@@ -18,6 +23,8 @@ const request = async <T>(path: string, token: string, store: Storage): Promise<
     throw new Error(`TMDB request failed (${response.status}).`);
   }
   const data = (await response.json()) as T;
+  if (valid && !valid(data))
+    throw new Error('TMDB returned invalid search page data. Please retry.');
   setCached(store, path, data);
   return data;
 };
@@ -33,15 +40,45 @@ export const normalizeSearchResults = (results: unknown[]): SearchResult[] =>
     ),
   );
 
+export interface SearchPage {
+  results: SearchResult[];
+  page: number;
+  totalPages: number;
+}
+
+// Bound navigation and retain only one page in the interface.
+export const MAX_SEARCH_PAGE = 500;
+
+export const searchMediaPage = async (
+  query: string,
+  token: string,
+  store: Storage,
+  page = 1,
+): Promise<SearchPage> => {
+  if (!Number.isInteger(page) || page < 1 || page > MAX_SEARCH_PAGE)
+    throw new Error('Search page must be an integer from 1 to 500.');
+  const path = `/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=${page}`;
+  type Payload = { results: unknown[]; page?: number; total_pages?: number };
+  const valid = (data: Payload): boolean =>
+    Boolean(
+      data &&
+      Array.isArray(data.results) &&
+      (data.page === undefined || data.page === page) &&
+      (data.total_pages === undefined ||
+        (Number.isInteger(data.total_pages) &&
+          data.total_pages >= 0 &&
+          page <= Math.max(1, data.total_pages))),
+    );
+  const response = await request<Payload>(path, token, store, valid);
+  const totalPages = Math.max(1, Math.min(MAX_SEARCH_PAGE, response.total_pages ?? 1));
+  return { results: normalizeSearchResults(response.results), page, totalPages };
+};
+
 export const searchMedia = async (
   query: string,
   token: string,
   store: Storage,
-): Promise<SearchResult[]> => {
-  const path = `/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=en-US&page=1`;
-  const response = await request<{ results: unknown[] }>(path, token, store);
-  return normalizeSearchResults(response.results);
-};
+): Promise<SearchResult[]> => (await searchMediaPage(query, token, store)).results;
 
 export const getMediaDetails = (
   mediaType: MediaType,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0 - 2026-10-23
+
+- Browse beyond the first search page with Previous/Next controls and an explicit page/query label.
+- Keep the current results when a page request fails, retry without losing the query, and ignore superseded responses.
+- Cache each query/page separately within the existing bounded cache. Filter people without hiding navigation through people-only pages.
+- Update the paired Vitest/V8 coverage development packages to patched 5.0.5.
+- Retain the static, local-first product boundary and existing token, private-note and export behavior.
+
 ## 1.4.2 - 2026-10-19
 
 - Report research-note persistence failures instead of silently discarding edits on internal navigation.

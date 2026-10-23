@@ -85,3 +85,11 @@ Vitest and its V8 coverage provider must use matching versions. The paired upgra
 ## Research-note save recovery (1.4.2)
 
 Run `node scripts/note-save-acceptance.mjs` against the built site with the existing optional Playwright runtime (`PLAYWRIGHT_MODULE`, `SCREENCARD_DIST` and `SCREENCARD_NOTE_REPORT` may select it and the report path). No dependency is downloaded by that script. In Chromium, Firefox and WebKit, fill actual isolated browser localStorage to quota, edit a short note, blur and navigate away/back. Verify a visible unsaved failure, the exact draft survives and the prior persisted note is unchanged. Free only synthetic quota filler, retry, reload and verify the edit is now persisted. Cover independent notes, deletion drafts and blocked storage in unit tests. Native real-provider acceptance remains user-reported; offline fixtures do not independently verify TMDB.
+
+## Search pagination (1.5.0)
+
+Movie/TV search now includes Previous and Next page controls and the successful query's page number. A new search starts at page 1. The interface retains one page at a time and caps navigation at 500 pages. TMDB multi-search totals include people, so a page can contain no movie/TV titles while later pages remain available. Each query/page has a separate key in the existing bounded cache. Missing pagination fields in older cached responses safely expose only page 1.
+
+Failed requests retain the previous cards and page label for retry. Superseded requests cannot replace a newer search or the fictional offline demo. Search input survives rerenders. No accounts, provider credentials, permissions or export fields are added.
+
+Before release, use fixture-only provider responses in Chromium, Firefox and WebKit at desktop/mobile widths: previous/next and final-page bounds; new-query reset; people-only intermediate page; a failed next page and retry; stale response after a newer query or demo; cached back-navigation; watchlist/compare controls on later pages. Keep all remote requests intercepted and use only synthetic tokens. Verify the exact release ZIP and deployed Pages assets. These fixtures do not establish new live-provider acceptance.

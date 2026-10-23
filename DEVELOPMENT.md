@@ -90,3 +90,9 @@ The paired Vitest 5 and V8 coverage update retires end-of-life Node.js 20 from t
 ## Research-note save recovery (1.4.2)
 
 Keep volatile note drafts separate from persisted notes and exports. Input events capture drafts before a rerender; only a successful storage write clears a draft or reports saved status. Failure must leave the prior saved note intact, show a visible unsaved warning and permit retry. Do not evict other data or change token/security settings to make a write succeed.
+
+## Search pagination (1.5.0)
+
+Movie/TV search now includes Previous and Next page controls and the successful query's page number. A new search starts at page 1. The interface retains one page at a time and caps navigation at 500 pages. TMDB multi-search totals include people, so a page can contain no movie/TV titles while later pages remain available. Each query/page has a separate key in the existing bounded cache. Missing pagination fields in older cached responses safely expose only page 1.
+
+Failed requests retain the previous cards and page label for retry. Superseded requests cannot replace a newer search or the fictional offline demo. Search input survives rerenders. No accounts, provider credentials, permissions or export fields are added.
